@@ -1,0 +1,20 @@
+THE PHANDALIN 5 1/2 — v128 Developer Notes
+
+Architecture
+- GitHub Pages hosts the static PWA.
+- Supabase provides authentication, database persistence, private artwork storage, RLS, and Realtime.
+- Shared campaign records must not be persisted to browser localStorage.
+- localStorage is intentionally limited to login/session state and lightweight UI preferences.
+
+Change discipline
+- Treat Supabase/RLS as the authority for shared data and permissions.
+- Keep service-worker cache names versioned when deploying a new build.
+- Test changes in a versioned test folder before promoting root production files.
+- Avoid broad refactors of collaboration or synchronization behavior without dedicated concurrency testing.
+
+v128
+- Migration-artifact/documentation cleanup only.
+- Removed unused localStorage migration functions.
+- Consolidated legacy localStorage deletion keys.
+- Updated manifest/app naming and backup version metadata.
+- Replaced historical README/collaboration notes with current architecture documentation.
