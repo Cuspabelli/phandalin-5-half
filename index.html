@@ -2752,20 +2752,28 @@ body.dm-mode .dmOnly:not(.hidden){
 <script>
 // ============================================================
 // THE PHANDALIN 5 1/2 — APPLICATION CODE
-// Developer-readable formatting pass (v125).
-// Formatting/comments only; application behavior is unchanged.
+// Production baseline v128: GitHub Pages client + Supabase cloud persistence.
+// Shared campaign data now persists in Supabase only; localStorage is reserved
+// for authentication and lightweight per-browser UI preferences.
 // Major systems below include local state, Supabase/realtime,
 // Inventory & Treasury, Campaign Reference, Session Notes,
 // backup/exports, and collaboration helpers.
 // ============================================================
-const KEY='shared-inventory-v1';
-const NOTES_KEY='shared-campaign-notes-v1';
-let campaignNotes=JSON.parse(localStorage.getItem(NOTES_KEY)||'[]'), selectedNote=null, currentPage='inventory';
-const REF_TRASH_KEY='shared-inventory-reference-trash-v1', SESSION_TRASH_KEY='shared-inventory-session-trash-v1';
-let referenceTrash=JSON.parse(localStorage.getItem(REF_TRASH_KEY)||'[]'), sessionTrash=JSON.parse(localStorage.getItem(SESSION_TRASH_KEY)||'[]'), activeTrashType='reference';
+const LEGACY_CAMPAIGN_STORAGE_KEYS=[
+  'shared-inventory-v1',
+  'shared-inventory-order-v1',
+  'shared-inventory-containers-v1',
+  'shared-inventory-characters-v1',
+  'shared-campaign-notes-v1',
+  'shared-inventory-session-notes-v1',
+  'shared-inventory-reference-trash-v1',
+  'shared-inventory-session-trash-v1'
+];
+let campaignNotes=[], selectedNote=null, currentPage='inventory';
+let referenceTrash=[], sessionTrash=[], activeTrashType='reference';
 function trashEsc(v){
   return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
-  function saveTrash(){localStorage.setItem(REF_TRASH_KEY,JSON.stringify(referenceTrash));localStorage.setItem(SESSION_TRASH_KEY,JSON.stringify(sessionTrash));queueCloudSync('reference');queueCloudSync('sessions')}
+  function saveTrash(){queueCloudSync('reference');queueCloudSync('sessions')}
   function openTrash(type){activeTrashType=type;$('trashTitle').textContent=type==='reference'?'Campaign Reference Trash':'Session Notes Trash';renderTrash();$('trashDialog').showModal()}
   function renderTrash(){
    let arr=activeTrashType==='reference'?referenceTrash:sessionTrash;
@@ -2794,8 +2802,6 @@ function trashEsc(v){
     await sb('/rest/v1/'+table+'?id=eq.'+encodeURIComponent(id)+'&campaign_id=eq.'+encodeURIComponent(campaignId),{method:'DELETE',headers:{'Prefer':'return=minimal'}});
     if(activeTrashType==='reference')referenceTrash=referenceTrash.filter(v=>v.id!==id);
     else sessionTrash=sessionTrash.filter(v=>v.id!==id);
-    localStorage.setItem(REF_TRASH_KEY,JSON.stringify(referenceTrash));
-    localStorage.setItem(SESSION_TRASH_KEY,JSON.stringify(sessionTrash));
     renderTrash();
     setSync('Synced','ok');
    }catch(e){
@@ -2806,10 +2812,10 @@ function trashEsc(v){
    }
   }
   let notesView=localStorage.getItem('shared-inventory-notes-view-v1')||'cards';
-  let pendingImage=''; let inventoryView=localStorage.getItem('shared-inventory-view-v1')||'image'; const ORDER_KEY='shared-inventory-order-v1'; let itemOrder=JSON.parse(localStorage.getItem(ORDER_KEY)||'{}'); let items=JSON.parse(localStorage.getItem(KEY)||'[]'), containers=JSON.parse(localStorage.getItem('shared-inventory-containers-v1')||'["Party"]'), characters=JSON.parse(localStorage.getItem('shared-inventory-characters-v1')||'[]'), tab='party', selected=null;
+  let pendingImage=''; let inventoryView=localStorage.getItem('shared-inventory-view-v1')||'image'; let itemOrder={}, items=[], containers=[], characters=[], tab='party', selected=null;
   const $=id=>document.getElementById(id);
-  function save(){localStorage.setItem(KEY,JSON.stringify(items));queueCloudSync('items')}
-  function saveItemOrder(){localStorage.setItem(ORDER_KEY,JSON.stringify(itemOrder));queueCloudSync('items')}
+  function save(){queueCloudSync('items')}
+  function saveItemOrder(){queueCloudSync('items')}
 
   const COLLAB_SCHEMA_VERSION=1;
   const SUPABASE_URL='https://aultalygqcbahofdlulx.supabase.co';
@@ -2921,8 +2927,15 @@ function trashEsc(v){
    sb('/rest/v1/campaign_reference?select=*&campaign_id=eq.'+campaignId+'&order=sort_order.asc,title.asc'),
    sb('/rest/v1/session_notes?select=*&campaign_id=eq.'+campaignId+'&order=session_number.desc')]);
    containerRows=cs||[];characterRows=ch||[];containers=containerRows.map(x=>x.name);characters=characterRows.map(x=>x.name);
+   // After a cloud-first reload, select a valid inventory location once
+   // implicitly establish the old "party" tab. Keep an existing valid tab,
+   // otherwise select the first real container returned by Supabase.
+   const tabIsValid = tab==='all' || tab==='used' || (tab==='storage' && currentRole==='dm') ||
+     (tab.startsWith('container:') && containers.includes(tab.slice(10))) ||
+     (tab.startsWith('char:') && characters.includes(tab.slice(5)));
+   if(!tabIsValid) tab=containers.length ? 'container:'+containers[0] : (characters.length ? 'char:'+characters[0] : 'all');
    const cmap=Object.fromEntries(containerRows.map(x=>[x.id,x.name])),hmap=Object.fromEntries(characterRows.map(x=>[x.id,x.name]));
-   // v99: fetch artwork metadata explicitly, then merge by item id before building
+   // Fetch artwork metadata explicitly, then merge by item id before building
    // client objects. This keeps image_path from being lost during row reconstruction.
    const artworkRows=await sb('/rest/v1/items?select=id,image_path&campaign_id=eq.'+campaignId);
    const artworkById=Object.fromEntries((artworkRows||[]).map(x=>[x.id,x.image_path||'']));
@@ -2932,7 +2945,9 @@ function trashEsc(v){
    itemOrder={};(it||[]).forEach(x=>itemOrder[x.id]=x.sort_order||0);
    campaignNotes=(ref||[]).filter(x=>!x.is_deleted).map(x=>({id:x.id,title:x.title,type:x.type,location:x.related_locations||x.legacy_location_text||'',text:x.body||'',revision:x.revision||0,updatedAt:x.updated_at}));referenceTrash=(ref||[]).filter(x=>x.is_deleted).map(x=>({id:x.id,title:x.title,type:x.type,location:x.related_locations||'',text:x.body||'',deletedAt:x.deleted_at||''}));
    sessionNotes=(ses||[]).filter(x=>!x.is_deleted).map(x=>({id:x.id,number:x.session_number,date:x.session_date||'',title:x.title||'',body:x.body||'',revision:x.revision||0,updatedAt:x.updated_at}));sessionTrash=(ses||[]).filter(x=>x.is_deleted).map(x=>({id:x.id,number:x.session_number,date:x.session_date||'',title:x.title||'',body:x.body||'',deletedAt:x.deleted_at||''}));
-   localStorage.setItem(KEY,JSON.stringify(items));localStorage.setItem(ORDER_KEY,JSON.stringify(itemOrder));localStorage.setItem('shared-inventory-containers-v1',JSON.stringify(containers));localStorage.setItem('shared-inventory-characters-v1',JSON.stringify(characters));localStorage.setItem(NOTES_KEY,JSON.stringify(campaignNotes));localStorage.setItem(SESSION_KEY,JSON.stringify(sessionNotes));localStorage.setItem(REF_TRASH_KEY,JSON.stringify(referenceTrash));localStorage.setItem(SESSION_TRASH_KEY,JSON.stringify(sessionTrash));
+   // Supabase is the source of truth. Remove obsolete campaign caches so large
+   // item artwork can never exhaust the browser's localStorage quota.
+   LEGACY_CAMPAIGN_STORAGE_KEYS.forEach(k=>localStorage.removeItem(k));
    cloudReady=true;renderContainers();renderCharacters();renderNotes();renderSessions();render();refreshOpenItemViewer();setSync('Synced','ok')}
   async function uploadDataImage(item){
    // Existing cloud artwork is immutable during ordinary edits/moves. Only a
@@ -2971,8 +2986,6 @@ function trashEsc(v){
   async function syncReference(){let all=[...campaignNotes.map(x=>({...x,_del:false})),...referenceTrash.map(x=>({...x,_del:true}))],rows=all.map((x,i)=>({id:x.id,campaign_id:campaignId,title:x.title||'Untitled',type:x.type||'General',body:x.text||'',related_locations:x.location||null,legacy_location_text:x.location||null,is_deleted:x._del,deleted_at:x._del?(x.deletedAt&&Date.parse(x.deletedAt)?new Date(x.deletedAt).toISOString():new Date().toISOString()):null,sort_order:i,updated_by:cloudSession.user.id}));await upsertRows('campaign_reference',rows)}
   async function syncSessions(){let all=[...sessionNotes.map(x=>({...x,_del:false})),...sessionTrash.map(x=>({...x,_del:true}))],rows=all.map((x,i)=>({id:/^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(x.id)?x.id:crypto.randomUUID(),campaign_id:campaignId,session_number:+x.number||0,session_date:x.date||null,title:x.title||null,body:x.body||'',is_deleted:x._del,deleted_at:x._del?(x.deletedAt&&Date.parse(x.deletedAt)?new Date(x.deletedAt).toISOString():new Date().toISOString()):null,sort_order:i,updated_by:cloudSession.user.id}));rows.forEach((r,i)=>{all[i].id=r.id});sessionNotes=all.filter(x=>!x._del).map(({_del,...x})=>x);sessionTrash=all.filter(x=>x._del).map(({_del,...x})=>x);await upsertRows('session_notes',rows)}
   async function syncAll(){if(!cloudReady||syncBusy)return;syncBusy=true;setSync('Syncing…');try{await syncContainersCharacters();await syncItems();await syncReference();await syncSessions();setSync(realtimeChannel?'Synced • Live':'Synced','ok');await updateVisibleFingerprint()}finally{syncBusy=false}}
-  function hasLocalCampaignData(){return items.length||campaignNotes.length||sessionNotes.length||containers.some(x=>x!=='Party')||characters.length}
-  async function migrateLocalSnapshot(snapshot){items=snapshot.items;containers=snapshot.containers;characters=snapshot.characters;campaignNotes=snapshot.campaignNotes;sessionNotes=snapshot.sessionNotes;referenceTrash=snapshot.referenceTrash;sessionTrash=snapshot.sessionTrash;itemOrder=snapshot.itemOrder;ensureCollabMetadata();cloudReady=true;await syncAll();await loadCloudData()}
 
   function updateBackupAccess(){
    const b=$('campaignBackupBtn');if(!b)return;
@@ -3007,7 +3020,7 @@ function trashEsc(v){
    const artwork=[];
    const paths=[...new Set((it||[]).map(x=>x.image_path).filter(Boolean))];
    for(const path of paths)artwork.push(await backupArtwork(path));
-   return {format:'phandalin-5-half-full-backup',version:1,appVersion:'v113',exportedAt:new Date().toISOString(),campaignId,
+   return {format:'phandalin-5-half-full-backup',version:1,appVersion:'v128',exportedAt:new Date().toISOString(),campaignId,
     campaign:campaigns?.[0]||null,campaignMembers:members||[],containers:cs||[],characters:ch||[],items:it||[],
     campaignReference:ref||[],sessionNotes:ses||[],sessionNoteUpdates:updates||[],artwork};
   }
@@ -3115,7 +3128,7 @@ function trashEsc(v){
     setSync('PDF export downloaded','ok')
    }catch(e){console.error(e);setSync('Export failed','bad');alert('The Inventory PDF could not be created. '+(e?.message||e))}
   }
-  async function initSharedApp(){let localSnapshot={items:[...items],containers:[...containers],characters:[...characters],campaignNotes:[...campaignNotes],sessionNotes:[...sessionNotes],referenceTrash:[...referenceTrash],sessionTrash:[...sessionTrash],itemOrder:{...itemOrder}};try{cloudSession=JSON.parse(localStorage.getItem(SB_SESSION_KEY)||'null')}catch{};if(cloudSession){try{if(cloudSession.expires_at&&cloudSession.expires_at*1000<Date.now()+30000)await refreshSession();await loadMembership();$('authGate').classList.add('hidden');await loadCloudData();await startRealtime();startSessionRefresh();if(currentRole==='dm'&&hasLocalCampaignData.call(null)&&!items.length&&localSnapshot.items.length){await migrateLocalSnapshot(localSnapshot)}}catch(e){console.warn(e);localStorage.removeItem(SB_SESSION_KEY);cloudSession=null}}}
+  async function initSharedApp(){try{cloudSession=JSON.parse(localStorage.getItem(SB_SESSION_KEY)||'null')}catch{};if(cloudSession){try{if(cloudSession.expires_at&&cloudSession.expires_at*1000<Date.now()+30000)await refreshSession();await loadMembership();$('authGate').classList.add('hidden');await loadCloudData();await startRealtime();startSessionRefresh()}catch(e){console.warn(e);localStorage.removeItem(SB_SESSION_KEY);cloudSession=null}}}
 
   function nowISO(){return new Date().toISOString()}
   function ensureCollabMetadata(){
@@ -3130,13 +3143,12 @@ function trashEsc(v){
    if(changed){save();saveItemOrder()}
   }
 
-  function saveContainers(){localStorage.setItem('shared-inventory-containers-v1',JSON.stringify(containers));queueCloudSync('containers')}
-  function saveCharacters(){localStorage.setItem('shared-inventory-characters-v1',JSON.stringify(characters));queueCloudSync('characters')}
+  function saveContainers(){queueCloudSync('containers')}
+  function saveCharacters(){queueCloudSync('characters')}
 
-  const SESSION_KEY='shared-inventory-session-notes-v1';
-  let sessionNotes=JSON.parse(localStorage.getItem(SESSION_KEY)||'[]');
+  let sessionNotes=[];
   let collapsedSessions=JSON.parse(localStorage.getItem('shared-inventory-session-collapsed-v1')||'{}');
-  function saveSessionNotes(){localStorage.setItem(SESSION_KEY,JSON.stringify(sessionNotes));queueCloudSync('sessions')}
+  function saveSessionNotes(){queueCloudSync('sessions')}
   function saveCollapsedSessions(){localStorage.setItem('shared-inventory-session-collapsed-v1',JSON.stringify(collapsedSessions))}
   function sesc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
   function cleanSessionHTML(html){
@@ -3200,7 +3212,7 @@ function trashEsc(v){
    try{await window.collabSession?.open(x?.id||null,x?.body||'')}catch(e){console.error(e);$('sessionCollabStatus').textContent='Live collaboration unavailable: '+(e?.message||e)}
   }
 
-  const saveNotes=()=>{localStorage.setItem(NOTES_KEY,JSON.stringify(campaignNotes));queueCloudSync('reference')};
+  const saveNotes=()=>{queueCloudSync('reference')};
   function showPage(page){updateBackupAccess();currentPage=page;let inv=page==='inventory',notes=page==='notes',sess=page==='session';$('inventoryPage').classList.toggle('hidden',!inv);$('notesPage').classList.toggle('hidden',!notes);$('sessionPage').classList.toggle('hidden',!sess);$('inventoryActions').classList.toggle('hidden',!inv);$('inventoryActions').style.display=inv?'flex':'none';$('addNote').classList.toggle('hidden',!notes);$('addNote').style.display=notes?'block':'none';$('inventoryNav').classList.toggle('active',inv);$('notesNav').classList.toggle('active',notes);$('sessionNav').classList.toggle('active',sess);if(notes)renderNotes();if(sess)renderSessions()}
   function noteLocations(n){return String(n.location||'').split(',').map(x=>x.trim()).filter(Boolean)}
   function noteEsc(v){return String(v??'').replace(/[&<>"']/g,c=>({
@@ -3443,7 +3455,7 @@ function refreshOpenItemViewer(){
 }
 
 function resetTreasury(i={}){treasuryEditBase=i.id?cloneEditBase(i):null;$('treasuryId').value=i.id||'';$('treasuryName').value=i.name||'Funds & Valuables';$('treasuryPP').value=i.pp||0;$('treasuryGP').value=i.gp||0;$('treasurySP').value=i.sp||0;$('treasuryCP').value=i.cp||0;$('treasuryValuables').value=i.valuables||'';$('deleteTreasury').classList.toggle('hidden',!i.id||$('mode').value!=='dm');$('treasuryTitle').textContent=i.id?'Edit Treasury':'Add Treasury';let loc=i.location==='container'?'container:'+(i.container||''):i.location==='character'?'character:'+(i.holder||''):'';if(loc&&[...$('treasuryLocation').options].some(o=>o.value===loc))$('treasuryLocation').value=loc;else if(tab.startsWith('container:'))$('treasuryLocation').value=tab;else if(tab.startsWith('char:'))$('treasuryLocation').value='character:'+tab.slice(5)}
-$('addTreasury').onclick=()=>{resetTreasury();$('treasuryEditor').showModal()};$('cancelTreasury').onclick=()=>$('treasuryEditor').close();$('editTreasury').onclick=()=>{let i=items.find(x=>x.id===selected);$('viewer').close();resetTreasury(i);$('treasuryEditor').showModal()};$('treasuryForm').onsubmit=async e=>{e.preventDefault();try{let id=$('treasuryId').value;if(id&&treasuryEditBase)await refreshIfRevisionChanged('items',id,treasuryEditBase.revision);let latest=items.find(x=>x.id===id),lv=$('treasuryLocation').value,isChar=lv.startsWith('character:'),mine={id:latest?.id||crypto.randomUUID(),createdAt:latest?.createdAt||nowISO(),updatedAt:nowISO(),revision:(latest?.revision||0)+1,kind:'treasury',name:$('treasuryName').value.trim()||'Funds & Valuables',pp:Math.max(0,+$('treasuryPP').value||0),gp:Math.max(0,+$('treasuryGP').value||0),sp:Math.max(0,+$('treasurySP').value||0),cp:Math.max(0,+$('treasuryCP').value||0),valuables:$('treasuryValuables').value.trim(),location:isChar?'character':'container',holder:isChar?lv.slice(10):'',container:isChar?'':lv.slice(10),category:'',rarity:'',notes:'',qty:0,identified:true,image:latest?.image||'',imagePath:latest?.imagePath||''};let obj=mine;if(id&&treasuryEditBase&&latest&&latest.revision!==treasuryEditBase.revision){const fields=['name','pp','gp','sp','cp','valuables','location','holder','container'],labels={name:'Name',pp:'Platinum',gp:'Gold',sp:'Silver',cp:'Copper',valuables:'Jewels & Valuables',location:'Location',holder:'Character',container:'Container'};const yours=fieldChanges(treasuryEditBase,mine,fields),theirs=fieldChanges(treasuryEditBase,latest,fields),overlap=yours.filter(f=>theirs.includes(f)&&!sameVal(mine[f],latest[f]));if(overlap.length){const choice=await askConflict(treasuryEditBase,latest,mine,fields,labels);if(choice==='cancel')return;obj=choice==='merge'?mergeEdits(treasuryEditBase,latest,mine,fields):{...latest,...mine}}else obj=mergeEdits(treasuryEditBase,latest,mine,fields);obj.updatedAt=nowISO();obj.revision=(latest.revision||0)+1}items=latest?items.map(x=>x.id===obj.id?obj:x):[...items,obj];save();$('treasuryEditor').close();render()}catch(err){console.error(err);alert('The Treasury could not be saved. '+(err?.message||err))}};$('deleteTreasury').onclick=async()=>{let id=$('treasuryId').value;if(!id||currentRole!=='dm')return;if(!confirm('Delete this Treasury?'))return;setSync('Deleting…');try{await sb('/rest/v1/items?id=eq.'+encodeURIComponent(id)+'&campaign_id=eq.'+encodeURIComponent(campaignId),{method:'DELETE'});items=items.filter(x=>x.id!==id);delete itemOrder[id];saveItemOrder();localStorage.setItem(KEY,JSON.stringify(items));$('treasuryEditor').close();render();setSync('Synced','ok')}catch(e){console.error(e);setSync('Delete failed','bad');alert('The Treasury could not be permanently deleted. It has not been removed from the shared campaign.');try{await loadCloudData()}catch(loadErr){console.error(loadErr)}}};
+$('addTreasury').onclick=()=>{resetTreasury();$('treasuryEditor').showModal()};$('cancelTreasury').onclick=()=>$('treasuryEditor').close();$('editTreasury').onclick=()=>{let i=items.find(x=>x.id===selected);$('viewer').close();resetTreasury(i);$('treasuryEditor').showModal()};$('treasuryForm').onsubmit=async e=>{e.preventDefault();try{let id=$('treasuryId').value;if(id&&treasuryEditBase)await refreshIfRevisionChanged('items',id,treasuryEditBase.revision);let latest=items.find(x=>x.id===id),lv=$('treasuryLocation').value,isChar=lv.startsWith('character:'),mine={id:latest?.id||crypto.randomUUID(),createdAt:latest?.createdAt||nowISO(),updatedAt:nowISO(),revision:(latest?.revision||0)+1,kind:'treasury',name:$('treasuryName').value.trim()||'Funds & Valuables',pp:Math.max(0,+$('treasuryPP').value||0),gp:Math.max(0,+$('treasuryGP').value||0),sp:Math.max(0,+$('treasurySP').value||0),cp:Math.max(0,+$('treasuryCP').value||0),valuables:$('treasuryValuables').value.trim(),location:isChar?'character':'container',holder:isChar?lv.slice(10):'',container:isChar?'':lv.slice(10),category:'',rarity:'',notes:'',qty:0,identified:true,image:latest?.image||'',imagePath:latest?.imagePath||''};let obj=mine;if(id&&treasuryEditBase&&latest&&latest.revision!==treasuryEditBase.revision){const fields=['name','pp','gp','sp','cp','valuables','location','holder','container'],labels={name:'Name',pp:'Platinum',gp:'Gold',sp:'Silver',cp:'Copper',valuables:'Jewels & Valuables',location:'Location',holder:'Character',container:'Container'};const yours=fieldChanges(treasuryEditBase,mine,fields),theirs=fieldChanges(treasuryEditBase,latest,fields),overlap=yours.filter(f=>theirs.includes(f)&&!sameVal(mine[f],latest[f]));if(overlap.length){const choice=await askConflict(treasuryEditBase,latest,mine,fields,labels);if(choice==='cancel')return;obj=choice==='merge'?mergeEdits(treasuryEditBase,latest,mine,fields):{...latest,...mine}}else obj=mergeEdits(treasuryEditBase,latest,mine,fields);obj.updatedAt=nowISO();obj.revision=(latest.revision||0)+1}items=latest?items.map(x=>x.id===obj.id?obj:x):[...items,obj];save();$('treasuryEditor').close();render()}catch(err){console.error(err);alert('The Treasury could not be saved. '+(err?.message||err))}};$('deleteTreasury').onclick=async()=>{let id=$('treasuryId').value;if(!id||currentRole!=='dm')return;if(!confirm('Delete this Treasury?'))return;setSync('Deleting…');try{await sb('/rest/v1/items?id=eq.'+encodeURIComponent(id)+'&campaign_id=eq.'+encodeURIComponent(campaignId),{method:'DELETE'});items=items.filter(x=>x.id!==id);delete itemOrder[id];saveItemOrder();$('treasuryEditor').close();render();setSync('Synced','ok')}catch(e){console.error(e);setSync('Delete failed','bad');alert('The Treasury could not be permanently deleted. It has not been removed from the shared campaign.');try{await loadCloudData()}catch(loadErr){console.error(loadErr)}}};
 function populateItemLocationTargets(containerValue='',holderValue=''){
  const c=$('itemContainer'),h=$('holder');
  const wantedContainer=containerValue||c.value||'',wantedHolder=holderValue||h.value||'';
@@ -3466,7 +3478,7 @@ $('add').onclick=()=>{resetForm({location:'container',container:containers[0]||'
 $('cancel').onclick=()=>$('editor').close();$('closeView').onclick=()=>$('viewer').close();
 $('edit').onclick=()=>{let i=items.find(x=>x.id===selected);$('viewer').close();resetForm(i);$('editor').showModal()}
 $('playerRemove').onclick=()=>{let i=items.find(x=>x.id===selected);if(!i)return;let total=Math.max(1,+i.qty||1),removeQty=1;if(total>1){let raw=prompt('How many of “'+(i.name||'this item')+'” do you want to move to Used/Sold?\n\nAvailable: '+total,'1');if(raw===null)return;removeQty=parseInt(raw,10);if(!Number.isInteger(removeQty)||removeQty<1||removeQty>total){alert('Please enter a number from 1 to '+total+'.');return;}}else if(!confirm('Move “'+(i.name||'this item')+'” to Used/Sold?'))return;if(removeQty===total){items=items.map(x=>x.id===selected?{...x,location:'used',container:'',holder:''}:x);}else{let remaining={...i,qty:total-removeQty};let removed={...i,id:crypto.randomUUID(),qty:removeQty,location:'used',container:'',holder:''};items=items.map(x=>x.id===selected?remaining:x);items.push(removed);}save();$('viewer').close();tab='used';render()};
-$('delete').onclick=async()=>{let id=$('id').value;if(!id||currentRole!=='dm')return;if(!confirm('Delete this item?'))return;setSync('Deleting…');try{await sb('/rest/v1/items?id=eq.'+encodeURIComponent(id)+'&campaign_id=eq.'+encodeURIComponent(campaignId),{method:'DELETE'});items=items.filter(x=>x.id!==id);delete itemOrder[id];saveItemOrder();localStorage.setItem(KEY,JSON.stringify(items));$('editor').close();render();setSync('Synced','ok')}catch(e){console.error(e);setSync('Delete failed','bad');alert('The item could not be permanently deleted. It has not been removed from the shared campaign.');try{await loadCloudData()}catch(loadErr){console.error(loadErr)}}}
+$('delete').onclick=async()=>{let id=$('id').value;if(!id||currentRole!=='dm')return;if(!confirm('Delete this item?'))return;setSync('Deleting…');try{await sb('/rest/v1/items?id=eq.'+encodeURIComponent(id)+'&campaign_id=eq.'+encodeURIComponent(campaignId),{method:'DELETE'});items=items.filter(x=>x.id!==id);delete itemOrder[id];saveItemOrder();$('editor').close();render();setSync('Synced','ok')}catch(e){console.error(e);setSync('Delete failed','bad');alert('The item could not be permanently deleted. It has not been removed from the shared campaign.');try{await loadCloudData()}catch(loadErr){console.error(loadErr)}}}
 const fileToData=f=>new Promise(r=>{let rd=new FileReader();rd.onload=()=>r(rd.result);rd.readAsDataURL(f)});
 function updateImagePreview(){$('imagePreview').innerHTML=pendingImage?`<img src="${pendingImage}" alt="Item image preview">`:'Image preview will appear here'}
 $('chooseImage').onclick=()=>$('image').click();
@@ -3557,7 +3569,7 @@ render();
 initSharedApp();
 if('serviceWorker' in navigator) window.addEventListener('load',()=>navigator.serviceWorker.register('./service-worker.js'));
 
-// v112 collaborative Session Notes bridge. The Yjs module below uses the existing authenticated API.
+// Collaborative Session Notes bridge. The Yjs module below uses the existing authenticated API.
 window.collabApi={
  get campaignId(){return campaignId},
  get userId(){return cloudSession?.user?.id||null},
