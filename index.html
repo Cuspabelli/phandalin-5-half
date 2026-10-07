@@ -1651,17 +1651,38 @@ body.dm-mode .dmOnly:not(.hidden){display:inline-flex !important;}
 .item.touchDragging{transform:scale(.985)}
 .treasuryCard{cursor:pointer}
 
+
+/* v89: Supabase authentication + shared sync */
+#authGate{position:fixed;inset:0;z-index:9999;background:linear-gradient(rgba(15,27,43,.94),rgba(15,27,43,.96)),url('./assets/header-background.webp') center/cover;display:flex;align-items:center;justify-content:center;padding:24px}
+#authGate.hidden{display:none!important}.authCard{width:min(430px,100%);background:#fbf7ed;border:1px solid #b99a5b;border-radius:16px;padding:26px;box-shadow:0 20px 70px #0008}.authBrand{text-align:center;color:#172435;font-size:24px;font-weight:700;letter-spacing:.04em}.authSub{text-align:center;color:#6f6657;margin:4px 0 20px}.authCard label{display:block;font-size:13px;font-weight:700;margin:12px 0 5px}.authCard input{width:100%;box-sizing:border-box;padding:11px;border:1px solid #b9b0a0;border-radius:8px;background:white}.authCard .btn{width:100%;justify-content:center;margin-top:16px}.authError{min-height:20px;color:#9a2d2d;margin-top:10px;font-size:13px}.syncBar{display:flex;align-items:center;gap:8px;color:#e9edef;font-size:12px}.syncDot{width:8px;height:8px;border-radius:50%;background:#d7b35a}.syncDot.ok{background:#79b77b}.syncDot.bad{background:#c96969}.syncBar button{background:transparent;border:1px solid #a9976e;color:#f4efe4;border-radius:7px;padding:5px 8px;cursor:pointer}.roleBadge{font-weight:700;text-transform:uppercase;letter-spacing:.06em}.migrationBox{margin-top:14px;padding:12px;border:1px solid #c9b98f;border-radius:9px;background:#f4eddb;font-size:13px}.migrationBox .btn{margin-top:9px}
+#grid.listview .treasuryPreview{
+ font-size:9px!important;color:#777!important;line-height:1.15!important;
+ margin-top:4px!important;font-weight:400!important;opacity:.72!important;
+ white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important;
+ max-width:100%!important
+}</style>
+<link href="https://cdn.jsdelivr.net/npm/quill@1.3.7/dist/quill.snow.css" rel="stylesheet">
+<style>
+#sessionBody.collabHost{min-height:220px;padding:0!important;border:0!important;background:transparent!important}
+#sessionBody .ql-container{font-family:inherit;font-size:14px;border:1px solid var(--line);border-radius:0 0 10px 10px;background:#fff;min-height:190px}
+#sessionBody .ql-editor{min-height:190px;line-height:1.55}
+#sessionBody .ql-toolbar{border:1px solid var(--line);border-radius:10px 10px 0 0;background:#faf7ef}
+.collabStatus{font-size:12px;color:var(--muted);margin-top:6px}.collabStatus.live{color:#39734b}
 </style>
+<script src="https://cdn.jsdelivr.net/npm/quill@1.3.7/dist/quill.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://unpkg.com/docx@9.4.1/dist/index.umd.cjs"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@3.0.3/dist/jspdf.umd.min.js"></script>
 </head>
-<body><div class="shell">
+<body><div id="authGate"><form class="authCard" id="authForm"><div class="authBrand">THE PHANDALIN 5 1/2</div><div class="authSub">Shared campaign journal</div><label for="authEmail">Email</label><input id="authEmail" type="email" autocomplete="username" required><label for="authPassword">Password</label><input id="authPassword" type="password" autocomplete="current-password" required><button class="btn primary" type="submit">Sign In</button><div class="authError" id="authError"></div></form></div><div class="shell">
 <header><div class="brandCluster"><img class="brandLogo" src="./assets/phandalin-mountain-logo.png" alt=""><div class="brandText"><div class="brand">THE PHANDALIN 5 1/2</div><div class="sub">Shared campaign journal</div></div></div>
-<div class="appnav"><button class="navbtn active" id="inventoryNav"><img class="navIcon" src="./assets/inventory-icon.png" alt="">Inventory</button><button class="navbtn" id="notesNav"><img class="navIcon" src="./assets/reference-icon.png" alt="">Campaign Reference</button><button class="navbtn" id="sessionNav"><img class="navIcon" src="./assets/session-icon.png" alt="">Session Notes</button></div><div class="mode"><span>View</span><select id="mode"><option value="player">Player</option><option value="dm">DM</option></select></div></header>
+<div class="appnav"><button class="navbtn active" id="inventoryNav"><img class="navIcon" src="./assets/inventory-icon.png" alt="">Inventory</button><button class="navbtn" id="notesNav"><img class="navIcon" src="./assets/reference-icon.png" alt="">Campaign Reference</button><button class="navbtn" id="sessionNav"><img class="navIcon" src="./assets/session-icon.png" alt="">Session Notes</button></div><div class="mode"><select id="mode" aria-label="Role" disabled><option value="player">Player</option><option value="dm">DM</option></select><div class="syncBar"><span class="syncDot" id="syncDot"></span><span id="syncText">Offline</span><button id="syncNow" type="button">Sync</button><button id="signOut" type="button">Sign out</button></div></div></header>
 <main id="inventoryPage" class="page">
 <div class="toolbar"><input id="search" placeholder="Search items…"><select id="category"><option value="">All categories</option></select><select id="owner"><option value="">All holders</option></select></div>
 <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap"><div class="viewtoggle"><button class="btn viewbtn active" id="imageView" type="button">▦ Image View</button><button class="btn viewbtn" id="listView" type="button">☰ List View</button><button class="btn viewbtn" id="compactView" type="button">≡ Compact</button></div></div><div class="tabs" id="tabs"><span id="containerTabs" style="display:contents"></span><span id="characterTabs" style="display:contents"></span><button class="tab dmOnly" data-tab="storage">DM Storage</button><button class="tab" data-tab="used">Used/Sold</button><button class="tab" data-tab="all">All Visible</button><button class="tab dmOnly" id="manageContainers">＋ Containers</button><button class="tab dmOnly" id="manageCharacters">＋ Characters</button></div>
 <div class="grid" id="grid"></div><div class="empty hidden" id="empty">No items match this view.</div>
 </main><main id="notesPage" class="page hidden"><div class="sectionTitleRow"><h2 class="notesHeading">Campaign Reference</h2></div><div class="notesToolbar"><input id="noteSearch" placeholder="Search campaign notes…"><select id="noteFilter"><option value="">All note types</option><option>NPC</option><option>Location</option><option>Quest</option><option>Faction</option><option>Lore</option><option>General</option></select><select id="noteLocationFilter"><option value="">All locations</option></select><div class="noteViewToggle"><button class="btn noteViewBtn active" id="noteCardView" type="button">▦ Cards</button><button class="btn noteViewBtn" id="noteListView" type="button">☰ List</button></div></div><div id="notesGrid" class="notesGrid"></div><div id="notesEmpty" class="notesEmpty hidden">No campaign notes match this view.</div><div class="trashBottom"><button class="btn trashOpen" id="referenceTrashBtn" type="button" aria-label="Campaign Reference Trash" title="Trash">🗑</button></div></main><main id="sessionPage" class="page hidden"><div class="sessionHeadingRow"><div><div class="sectionTitleRow"><h2 class="notesHeading">Session Notes</h2></div><div class="sessionIntro">A chronological notebook for what happens during each session.</div></div><button class="btn primary" id="addSession">＋ New Session</button></div><div class="sessionTools"><input id="sessionSearch" placeholder="Search session notes…"><div class="sessionBulkActions"><button class="btn" id="expandAllSessions" type="button">Expand All</button><button class="btn" id="collapseAllSessions" type="button">Collapse All</button></div></div><div id="sessionList" class="sessionList"></div><div id="sessionEmpty" class="notesEmpty hidden">No session notes yet.</div><div class="trashBottom"><button class="btn trashOpen" id="sessionTrashBtn" type="button" aria-label="Session Notes Trash" title="Trash">🗑</button></div></main></div>
-<div class="fabgroup" id="inventoryActions"><button class="btn treasuryAdd" id="addTreasury">＋ Treasury</button><button class="btn primary" id="add">＋ Add Item</button></div><button class="btn primary notesFab hidden" id="addNote">＋ Add Note</button>
+<div class="fabgroup" id="inventoryActions"><button class="btn hidden" id="campaignBackupBtn" type="button">Campaign Backup</button><button class="btn treasuryAdd" id="addTreasury">＋ Treasury</button><button class="btn primary" id="add">＋ Add Item</button></div><button class="btn primary notesFab hidden" id="addNote">＋ Add Note</button>
 
 
 <dialog id="trashDialog">
@@ -1677,17 +1698,28 @@ body.dm-mode .dmOnly:not(.hidden){display:inline-flex !important;}
     <div id="trashEmpty" class="notesEmpty hidden">Trash is empty.</div>
   </div>
 </dialog>
-<dialog id="sessionEditor"><form method="dialog" class="modal"><h2 id="sessionEditorTitle">New Session</h2><input type="hidden" id="sessionId"><div class="form"><div class="field"><label>Session Number</label><input id="sessionNumber" type="number" min="1"></div><div class="field"><label>Date</label><input id="sessionDate" type="date"></div><div class="field full"><label>Session Title</label><input id="sessionTitle" placeholder="e.g. The Road to Chult"></div><div class="field full"><label>Notes</label><div class="sessionFormatBar"><button class="btn sessionFmt" id="sessionBold" type="button"><b>B</b></button><button class="btn sessionFmt" id="sessionItalic" type="button"><i>I</i></button><button class="btn sessionFmt" id="sessionUnderline" type="button"><u>U</u></button><button class="btn sessionFmt" id="sessionBullet" type="button">• List</button></div><div id="sessionBody" class="sessionRichEditor" contenteditable="true" data-placeholder="Write the party's notes for this session…"></div></div></div><div class="actions"><button class="btn" value="cancel">Cancel</button><button class="btn danger hidden" id="deleteSession" type="button">Delete</button><button class="btn primary" id="saveSession" type="button">Save Session</button></div></form></dialog><dialog id="noteEditor"><form method="dialog" class="modal" id="noteForm"><h2 id="noteEditorTitle">Add Campaign Note</h2><input type="hidden" id="noteId"><div class="form"><div class="field full"><label>Title</label><input id="noteTitle" required placeholder="e.g. Lord Neverember"></div><div class="field full"><label>Type</label><select id="noteType"><option>NPC</option><option>Location</option><option>Quest</option><option>Faction</option><option>Lore</option><option>General</option></select></div><div class="field full"><label>Related Location(s)</label><input id="noteLocation" list="noteLocationNames" placeholder="e.g. Neverwinter"><datalist id="noteLocationNames"></datalist><div class="dmnote">For multiple locations, separate them with commas.</div></div>
+<dialog id="sessionEditor"><form method="dialog" class="modal"><h2 id="sessionEditorTitle">New Session</h2><input type="hidden" id="sessionId"><div class="form"><div class="field"><label>Session Number</label><input id="sessionNumber" type="number" min="1"></div><div class="field"><label>Date</label><input id="sessionDate" type="date"></div><div class="field full"><label>Session Title</label><input id="sessionTitle" placeholder="e.g. The Road to Chult"></div><div class="field full"><label>Notes</label><div id="sessionBody" class="collabHost"></div><div id="sessionCollabStatus" class="collabStatus">Live collaboration starts when this session is saved.</div></div></div><div class="actions"><button class="btn" value="cancel">Cancel</button><button class="btn danger hidden" id="deleteSession" type="button">Delete</button><button class="btn primary" id="saveSession" type="button">Save Session</button></div></form></dialog><dialog id="noteEditor"><form method="dialog" class="modal" id="noteForm"><h2 id="noteEditorTitle">Add Campaign Note</h2><input type="hidden" id="noteId"><div class="form"><div class="field full"><label>Title</label><input id="noteTitle" required placeholder="e.g. Lord Neverember"></div><div class="field full"><label>Type</label><select id="noteType"><option>NPC</option><option>Location</option><option>Quest</option><option>Faction</option><option>Lore</option><option>General</option></select></div><div class="field full"><label>Related Location(s)</label><input id="noteLocation" list="noteLocationNames" placeholder="e.g. Neverwinter"><datalist id="noteLocationNames"></datalist><div class="dmnote">For multiple locations, separate them with commas.</div></div>
 <div class="field full"><label>Notes</label><div class="noteFormatBar"><button type="button" class="btn formatBtn" id="noteBold" title="Bold"><b>B</b></button><button type="button" class="btn formatBtn" id="noteItalic" title="Italic"><i>I</i></button><button type="button" class="btn formatBtn" id="noteUnderline" title="Underline"><u>U</u></button><button type="button" class="btn formatBtn" id="noteBullet" title="Bulleted list">• List</button></div><div id="noteText" class="sessionRichEditor" contenteditable="true" data-placeholder="Add anything the party wants to remember…"></div></div></div><div class="actions"><button type="button" class="btn danger hidden" id="deleteNote">Delete</button><div class="right"><button type="button" class="btn" id="cancelNote">Cancel</button><button class="btn primary" value="default">Save</button></div></div></form></dialog><dialog id="noteViewer"><div class="modal"><div id="noteViewType" class="noteType"></div><h2 id="noteViewTitle"></h2><div id="noteViewBody" class="noteBody"></div><div class="actions"><button type="button" class="btn danger" id="trashNoteFromViewer">Delete</button><div class="right"><button class="btn" id="editNote">Edit</button><button class="btn" id="closeNote">Close</button></div></div></div></dialog>
 
-<dialog id="treasuryEditor"><form method="dialog" class="modal" id="treasuryForm"><h2 id="treasuryTitle">Add Treasury</h2><input type="hidden" id="treasuryId"><div class="form"><div class="field full"><label>Name</label><input id="treasuryName" value="Funds & Valuables" required></div><div class="field full"><label>Location</label><select id="treasuryLocation"></select></div><div class="field"><label>Platinum (PP)</label><input id="treasuryPP" type="number" min="0" step="1" value="0"></div><div class="field"><label>Gold (GP)</label><input id="treasuryGP" type="number" min="0" step="1" value="0"></div><div class="field"><label>Silver (SP)</label><input id="treasurySP" type="number" min="0" step="1" value="0"></div><div class="field"><label>Copper (CP)</label><input id="treasuryCP" type="number" min="0" step="1" value="0"></div><div class="field full"><label>Jewels & Valuables</label><textarea id="treasuryValuables" rows="7" placeholder="3 rubies — 50 gp each&#10;Diamond — 300 gp&#10;Silver necklace — 25 gp"></textarea></div></div><div class="actions"><button type="button" class="btn danger hidden" id="deleteTreasury">Delete</button><div class="right"><button type="button" class="btn" id="cancelTreasury">Cancel</button><button class="btn primary" value="default">Save</button></div></div></form></dialog><dialog id="editor"><form method="dialog" class="modal" id="form">
+<dialog id="backupDialog"><div class="modal"><h2>Campaign Backup & Exports</h2>
+<p>Create a complete recovery backup or readable campaign archives.</p>
+<div style="display:grid;gap:10px;margin:16px 0">
+ <button class="btn primary" id="downloadCampaignBackup" type="button">Full Backup (.json)</button>
+ <button class="btn" id="downloadCampaignNotesDocx" type="button">Campaign Notes (.docx)</button>
+ <button class="btn" id="downloadInventoryPdf" type="button">Inventory (.pdf)</button>
+</div>
+<p class="dmnote"><b>Full Backup</b> includes everything needed for recovery, including trash, DM Storage, Used/Sold, collaborative note history, and artwork.</p>
+<p class="dmnote"><b>Campaign Notes</b> includes active Session Notes and Campaign Reference entries. <b>Inventory</b> includes current shared/character items and Treasury; DM Storage and Used/Sold are excluded.</p>
+<div class="actions"><button class="btn" id="backupClose" type="button">Close</button></div>
+</div></dialog><dialog id="conflictDialog"><div class="modal"><h2>Changes Detected</h2><p id="conflictIntro">This entry changed while you were editing it.</p><div id="conflictSummary" style="max-height:320px;overflow:auto;border:1px solid var(--line);border-radius:10px;padding:12px;background:#fffaf0;white-space:pre-wrap"></div><p class="dmnote">Merge Changes keeps newer changes made by the other person on fields you did not edit, while keeping your edits on fields you changed. If both of you changed the same field, your value wins for that field.</p><div class="actions"><button class="btn" id="conflictCancel" type="button">Cancel</button><div class="right"><button class="btn" id="conflictOverwrite" type="button">Overwrite Anyway</button><button class="btn primary" id="conflictMerge" type="button">Merge Changes</button></div></div></div></dialog><dialog id="treasuryEditor"><form method="dialog" class="modal" id="treasuryForm"><h2 id="treasuryTitle">Add Treasury</h2><input type="hidden" id="treasuryId"><div class="form"><div class="field full"><label>Name</label><input id="treasuryName" value="Funds & Valuables" required></div><div class="field full"><label>Location</label><select id="treasuryLocation"></select></div><div class="field"><label>Platinum (PP)</label><input id="treasuryPP" type="number" min="0" step="1" value="0"></div><div class="field"><label>Gold (GP)</label><input id="treasuryGP" type="number" min="0" step="1" value="0"></div><div class="field"><label>Silver (SP)</label><input id="treasurySP" type="number" min="0" step="1" value="0"></div><div class="field"><label>Copper (CP)</label><input id="treasuryCP" type="number" min="0" step="1" value="0"></div><div class="field full"><label>Jewels & Valuables</label><textarea id="treasuryValuables" rows="7" placeholder="3 rubies — 50 gp each&#10;Diamond — 300 gp&#10;Silver necklace — 25 gp"></textarea></div></div><div class="actions"><button type="button" class="btn danger hidden" id="deleteTreasury">Delete</button><div class="right"><button type="button" class="btn" id="cancelTreasury">Cancel</button><button class="btn primary" value="default">Save</button></div></div></form></dialog><dialog id="editor"><form method="dialog" class="modal" id="form">
 <h2 id="formTitle">Add Item</h2><input type="hidden" id="id">
 <div class="form">
 <div class="field full"><label>Item name</label><input id="name" required></div>
 <div class="field"><label>Category</label><input id="cat" placeholder="Wondrous Item"></div>
 <div class="field"><label>Quantity</label><input id="qty" type="number" min="0" value="1"></div>
-<div class="field"><label>Location</label><select id="location"></select></div>
-<div class="field"><label>Holder / Character</label><input id="holder" list="characterNames" placeholder="Choose a PC"><datalist id="characterNames"></datalist></div>
+<div class="field"><label>Location</label><select id="location"><option value="container">Container</option><option value="character">Character</option><option value="storage">DM Storage</option><option value="used">Used / Sold</option></select></div>
+<div class="field" id="containerField"><label>Container</label><select id="itemContainer"></select></div>
+<div class="field" id="holderField"><label>Holder / Character</label><select id="holder"></select></div>
 <div class="field"><label>Rarity / label</label><input id="rarity" placeholder="Rare"></div>
 <div class="field full"><label>Item image</label>
 <div id="pasteImage" tabindex="0" style="border:2px dashed var(--line);border-radius:10px;padding:18px;text-align:center;background:#faf9f5;cursor:pointer;color:var(--muted)">Click here, then paste an image (Ctrl/Cmd+V)</div>
@@ -1717,17 +1749,19 @@ body.dm-mode .dmOnly:not(.hidden){display:inline-flex !important;}
 
 <dialog id="viewer"><div class="modal"><h2 id="vname"></h2><div id="vmeta" class="meta"></div><div id="vimage"></div><p id="vnotes"></p><div class="actions"><span></span><div class="right"><button class="btn playerOnly danger" id="playerRemove">Remove Item</button><button class="btn hidden" id="editTreasury">Edit Treasury</button><button class="btn" id="edit">Edit Item</button><button class="btn" id="closeView">Close</button></div></div></div></dialog>
 
+
+
 <script>
 const KEY='shared-inventory-v1'; const NOTES_KEY='shared-campaign-notes-v1'; let campaignNotes=JSON.parse(localStorage.getItem(NOTES_KEY)||'[]'), selectedNote=null, currentPage='inventory';
 const REF_TRASH_KEY='shared-inventory-reference-trash-v1', SESSION_TRASH_KEY='shared-inventory-session-trash-v1';
 let referenceTrash=JSON.parse(localStorage.getItem(REF_TRASH_KEY)||'[]'), sessionTrash=JSON.parse(localStorage.getItem(SESSION_TRASH_KEY)||'[]'), activeTrashType='reference';
 function trashEsc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
-function saveTrash(){localStorage.setItem(REF_TRASH_KEY,JSON.stringify(referenceTrash));localStorage.setItem(SESSION_TRASH_KEY,JSON.stringify(sessionTrash))}
+function saveTrash(){localStorage.setItem(REF_TRASH_KEY,JSON.stringify(referenceTrash));localStorage.setItem(SESSION_TRASH_KEY,JSON.stringify(sessionTrash));queueCloudSync('reference');queueCloudSync('sessions')}
 function openTrash(type){activeTrashType=type;$('trashTitle').textContent=type==='reference'?'Campaign Reference Trash':'Session Notes Trash';renderTrash();$('trashDialog').showModal()}
 function renderTrash(){
  let arr=activeTrashType==='reference'?referenceTrash:sessionTrash;
  $('trashEmpty').classList.toggle('hidden',arr.length>0);
- $('trashList').innerHTML=arr.map(x=>`<div class="trashRow"><div><div class="trashName">${trashEsc(x.title||(x.number?'Session '+x.number:'Untitled Note'))}</div><div class="trashMeta">Deleted ${trashEsc(x.deletedAt||'')}</div></div><div class="trashActions"><button class="btn" data-restore="${x.id}">Restore</button><button class="btn danger" data-purge="${x.id}">Delete Permanently</button></div></div>`).join('');
+ $('trashList').innerHTML=arr.map(x=>`<div class="trashRow"><div><div class="trashName">${trashEsc(x.title||(x.number?'Session '+x.number:'Untitled Note'))}</div><div class="trashMeta">Deleted ${trashEsc(x.deletedAt||'')}</div></div><div class="trashActions"><button class="btn" data-restore="${x.id}">Restore</button>${currentRole==='dm'?`<button class="btn danger" data-purge="${x.id}">Delete Permanently</button>`:''}</div></div>`).join('');
  document.querySelectorAll('[data-restore]').forEach(b=>b.onclick=()=>restoreTrash(b.dataset.restore));
  document.querySelectorAll('[data-purge]').forEach(b=>b.onclick=()=>purgeTrash(b.dataset.purge));
 }
@@ -1736,14 +1770,338 @@ function restoreTrash(id){
  else{let x=sessionTrash.find(v=>v.id===id);if(x){delete x.deletedAt;sessionNotes.push(x);sessionTrash=sessionTrash.filter(v=>v.id!==id);saveSessionNotes()}}
  saveTrash();renderTrash();if(activeTrashType==='reference')renderNotes();else renderSessions()
 }
-function purgeTrash(id){if(!confirm('Permanently delete this note? This cannot be undone.'))return;if(activeTrashType==='reference')referenceTrash=referenceTrash.filter(v=>v.id!==id);else sessionTrash=sessionTrash.filter(v=>v.id!==id);saveTrash();renderTrash()}
+async function purgeTrash(id){
+ if(currentRole!=='dm'){alert('Only the DM can permanently delete campaign notes.');return}
+ if(!confirm('Permanently delete this note? This cannot be undone.'))return;
+ const table=activeTrashType==='reference'?'campaign_reference':'session_notes';
+ try{
+  setSync('Deleting…');
+  await sb('/rest/v1/'+table+'?id=eq.'+encodeURIComponent(id)+'&campaign_id=eq.'+encodeURIComponent(campaignId),{method:'DELETE',headers:{'Prefer':'return=minimal'}});
+  if(activeTrashType==='reference')referenceTrash=referenceTrash.filter(v=>v.id!==id);
+  else sessionTrash=sessionTrash.filter(v=>v.id!==id);
+  localStorage.setItem(REF_TRASH_KEY,JSON.stringify(referenceTrash));
+  localStorage.setItem(SESSION_TRASH_KEY,JSON.stringify(sessionTrash));
+  renderTrash();
+  setSync('Synced','ok');
+ }catch(e){
+  console.error(e);
+  setSync('Delete failed','bad');
+  alert('The note could not be permanently deleted. It has not been removed from the shared campaign.');
+  try{await loadCloudData();renderTrash()}catch(loadErr){console.error(loadErr)}
+ }
+}
 let notesView=localStorage.getItem('shared-inventory-notes-view-v1')||'cards';
 let pendingImage=''; let inventoryView=localStorage.getItem('shared-inventory-view-v1')||'image'; const ORDER_KEY='shared-inventory-order-v1'; let itemOrder=JSON.parse(localStorage.getItem(ORDER_KEY)||'{}'); let items=JSON.parse(localStorage.getItem(KEY)||'[]'), containers=JSON.parse(localStorage.getItem('shared-inventory-containers-v1')||'["Party"]'), characters=JSON.parse(localStorage.getItem('shared-inventory-characters-v1')||'[]'), tab='party', selected=null;
 const $=id=>document.getElementById(id);
-function save(){localStorage.setItem(KEY,JSON.stringify(items))}
-function saveItemOrder(){localStorage.setItem(ORDER_KEY,JSON.stringify(itemOrder))}
+function save(){localStorage.setItem(KEY,JSON.stringify(items));queueCloudSync('items')}
+function saveItemOrder(){localStorage.setItem(ORDER_KEY,JSON.stringify(itemOrder));queueCloudSync('items')}
 
 const COLLAB_SCHEMA_VERSION=1;
+const SUPABASE_URL='https://aultalygqcbahofdlulx.supabase.co';
+const SUPABASE_KEY='sb_publishable_9Tg2BnJbfsoZ1GH4fGcFag_yIN-lbIP';
+const SB_SESSION_KEY='phandalin-supabase-session-v1';
+let cloudSession=null,campaignId=null,currentRole=null,cloudReady=false,syncTimer=null,syncBusy=false;
+let realtimeClient=null,realtimeChannel=null,realtimeReloadTimer=null,reconcileTimer=null,lastVisibleFingerprint='';
+let containerRows=[],characterRows=[];
+let itemEditBase=null,treasuryEditBase=null,noteEditBase=null,sessionEditBase=null,itemLocationTouched=false;
+function cloneEditBase(x){return x?JSON.parse(JSON.stringify(x)):null}
+function sameVal(a,b){return JSON.stringify(a??null)===JSON.stringify(b??null)}
+function fieldChanges(base,obj,fields){return fields.filter(f=>!sameVal(base?.[f],obj?.[f]))}
+function treasuryPreviewText(v){
+ const clean=String(v||'').split(/\r?\n+/).map(x=>x.trim()).filter(Boolean).join(', ').replace(/\s+/g,' ');
+ const words=clean.split(' ').filter(Boolean);
+ return words.length>7?words.slice(0,7).join(' ')+'...':clean
+}
+function describeValue(v){if(typeof v==='boolean')return v?'Yes':'No';if(v==null||v==='')return '—';let t=String(v).replace(/<[^>]*>/g,' ').replace(/\s+/g,' ').trim();return t.length>90?t.slice(0,87)+'…':t}
+function askConflict(base,latest,mine,fields,labels){
+ const yours=fieldChanges(base,mine,fields),theirs=fieldChanges(base,latest,fields),overlap=yours.filter(f=>theirs.includes(f)&&!sameVal(mine[f],latest[f]));
+ const lines=[];
+ if(theirs.length){lines.push('Changed by someone else:');theirs.forEach(f=>lines.push('• '+(labels[f]||f)+': '+describeValue(base?.[f])+' → '+describeValue(latest?.[f])))}
+ if(yours.length){if(lines.length)lines.push('');lines.push('Your changes:');yours.forEach(f=>lines.push('• '+(labels[f]||f)+': '+describeValue(base?.[f])+' → '+describeValue(mine?.[f])))}
+ if(overlap.length){lines.push('');lines.push('Both of you changed: '+overlap.map(f=>labels[f]||f).join(', '));}
+ $('conflictIntro').textContent='You and another person changed the same field. Review the conflicting changes before saving.';
+ $('conflictSummary').textContent=lines.join('\n');
+ return new Promise(resolve=>{const d=$('conflictDialog');const done=v=>{d.close();resolve(v)};$('conflictCancel').onclick=()=>done('cancel');$('conflictOverwrite').onclick=()=>done('overwrite');$('conflictMerge').onclick=()=>done('merge');d.showModal()});
+}
+function mergeEdits(base,latest,mine,fields){const out={...latest};for(const f of fields)if(!sameVal(base?.[f],mine?.[f]))out[f]=mine[f];return out}
+async function refreshIfRevisionChanged(table,id,baseRevision){if(!id||baseRevision==null)return false;const rows=await sb('/rest/v1/'+table+'?select=id,revision&id=eq.'+encodeURIComponent(id)+'&campaign_id=eq.'+encodeURIComponent(campaignId));const rev=rows?.[0]?.revision;if(rev!=null&&rev!==baseRevision){await loadCloudData();return true}return false}
+
+function sbHeaders(extra={}){return {'apikey':SUPABASE_KEY,'Authorization':'Bearer '+cloudSession?.access_token,'Content-Type':'application/json',...extra}}
+let sessionRefreshPromise=null,sessionRefreshTimer=null;
+function sessionNeedsRefresh(leewaySeconds=90){if(!cloudSession?.access_token)return false;if(!cloudSession.expires_at)return false;return cloudSession.expires_at*1000<=Date.now()+leewaySeconds*1000}
+async function ensureFreshSession(force=false){if(!cloudSession?.refresh_token)return false;if(!force&&!sessionNeedsRefresh())return true;if(sessionRefreshPromise)return sessionRefreshPromise;sessionRefreshPromise=(async()=>{const ok=await refreshSession();if(ok&&realtimeClient?.realtime&&cloudSession?.access_token){try{realtimeClient.realtime.setAuth(cloudSession.access_token)}catch(e){console.warn('Realtime auth refresh failed',e)}}return ok})().finally(()=>{sessionRefreshPromise=null});return sessionRefreshPromise}
+function startSessionRefresh(){stopSessionRefresh();sessionRefreshTimer=setInterval(()=>{ensureFreshSession(false).catch(e=>console.warn('Session refresh failed',e))},60000)}
+function stopSessionRefresh(){if(sessionRefreshTimer){clearInterval(sessionRefreshTimer);sessionRefreshTimer=null}}
+async function sb(path,opt={}){await ensureFreshSession(false);const run=()=>fetch(SUPABASE_URL+path,{...opt,headers:sbHeaders(opt.headers||{})});let r=await run();if(r.status===401||r.status===403){let body=await r.clone().text();if(/jwt|token|expired/i.test(body)){const refreshed=await ensureFreshSession(true);if(refreshed)r=await run()}}if(!r.ok){let t=await r.text();throw new Error(t||('Supabase '+r.status))}if(r.status===204)return null;let t=await r.text();return t?JSON.parse(t):null}
+function setSync(msg,state=''){if($('syncText'))$('syncText').textContent=msg;if($('syncDot'))$('syncDot').className='syncDot '+state}
+function queueCloudSync(kind){if(!cloudReady)return;clearTimeout(syncTimer);syncTimer=setTimeout(()=>syncAll().catch(e=>{console.error(e);setSync('Sync error','bad')}),500)}
+async function signIn(email,password){let r=await fetch(SUPABASE_URL+'/auth/v1/token?grant_type=password',{method:'POST',headers:{'apikey':SUPABASE_KEY,'Content-Type':'application/json'},body:JSON.stringify({email,password})});let data=await r.json();if(!r.ok)throw new Error(data.error_description||data.msg||data.error||'Sign in failed');cloudSession=data;localStorage.setItem(SB_SESSION_KEY,JSON.stringify(data));return data}
+async function refreshSession(){if(!cloudSession?.refresh_token)return false;let r=await fetch(SUPABASE_URL+'/auth/v1/token?grant_type=refresh_token',{method:'POST',headers:{'apikey':SUPABASE_KEY,'Content-Type':'application/json'},body:JSON.stringify({refresh_token:cloudSession.refresh_token})});if(!r.ok)return false;let next=await r.json();cloudSession={...cloudSession,...next,user:next.user||cloudSession.user};localStorage.setItem(SB_SESSION_KEY,JSON.stringify(cloudSession));return true}
+async function loadMembership(){let rows=await sb('/rest/v1/campaign_members?select=campaign_id,role,display_name&user_id=eq.'+cloudSession.user.id);if(!rows?.length)throw new Error('This account is not a member of The Phandalin 5 1/2.');campaignId=rows[0].campaign_id;currentRole=rows[0].role;$('mode').value=currentRole==='dm'?'dm':'player';$('mode').disabled=true;updateBackupAccess()}
+function scheduleRealtimeReload(){
+ if(!cloudReady)return;
+ clearTimeout(realtimeReloadTimer);
+ realtimeReloadTimer=setTimeout(async()=>{
+  if(syncBusy)return scheduleRealtimeReload();
+  try{await loadCloudData();await updateVisibleFingerprint()}catch(e){console.warn('Realtime refresh failed',e)}
+ },250);
+}
+async function visibleFingerprint(){
+ if(!campaignId||!cloudSession)return'';
+ const [it,ref,ses,cs,ch]=await Promise.all([
+  sb('/rest/v1/items?select=id,revision,updated_at,location_type,container_id,character_id&campaign_id=eq.'+campaignId+'&order=id.asc'),
+  sb('/rest/v1/campaign_reference?select=id,revision,updated_at,is_deleted&campaign_id=eq.'+campaignId+'&order=id.asc'),
+  sb('/rest/v1/session_notes?select=id,revision,updated_at,is_deleted&campaign_id=eq.'+campaignId+'&order=id.asc'),
+  sb('/rest/v1/containers?select=id,updated_at&campaign_id=eq.'+campaignId+'&order=id.asc'),
+  sb('/rest/v1/characters?select=id,updated_at&campaign_id=eq.'+campaignId+'&order=id.asc')
+ ]);
+ return JSON.stringify([it,ref,ses,cs,ch]);
+}
+async function updateVisibleFingerprint(){try{lastVisibleFingerprint=await visibleFingerprint()}catch(e){console.warn('Fingerprint update failed',e)}}
+async function reconcileVisibleData(){
+ if(!cloudReady||syncBusy)return;
+ try{const fp=await visibleFingerprint();if(lastVisibleFingerprint&&fp!==lastVisibleFingerprint){lastVisibleFingerprint=fp;scheduleRealtimeReload()}else if(!lastVisibleFingerprint)lastVisibleFingerprint=fp}catch(e){console.warn('Realtime reconciliation failed',e)}
+}
+async function startRealtime(){
+ stopRealtime();
+ if(!campaignId||!cloudSession)return;
+ // Realtime is the fast path. A lightweight reconciliation poll is retained
+ // because RLS can intentionally suppress an UPDATE whose new row becomes
+ // invisible (for example, a Player watching an item move into DM Storage).
+ try{
+  if(window.supabase?.createClient){
+   realtimeClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false}});
+   realtimeClient.realtime.setAuth(cloudSession.access_token);
+   realtimeChannel=realtimeClient.channel('campaign-'+campaignId);
+   for(const table of ['items','containers','characters','campaign_reference','session_notes']){
+    realtimeChannel.on('postgres_changes',{event:'*',schema:'public',table,filter:'campaign_id=eq.'+campaignId},()=>scheduleRealtimeReload());
+   }
+   realtimeChannel.on('postgres_changes',{event:'INSERT',schema:'public',table:'session_note_updates',filter:'campaign_id=eq.'+campaignId},payload=>{if(window.collabSession?.applyRow)window.collabSession.applyRow(payload.new)});
+   realtimeChannel.subscribe(status=>{if(status==='SUBSCRIBED')setSync('Synced • Live','ok')});
+  }
+ }catch(e){console.warn('Realtime subscription unavailable; reconciliation remains active',e)}
+ await updateVisibleFingerprint();
+ reconcileTimer=setInterval(reconcileVisibleData,3000);
+}
+function stopRealtime(){
+ clearTimeout(realtimeReloadTimer);realtimeReloadTimer=null;
+ if(reconcileTimer){clearInterval(reconcileTimer);reconcileTimer=null}
+ if(realtimeClient&&realtimeChannel){try{realtimeClient.removeChannel(realtimeChannel)}catch{}}
+ realtimeChannel=null;realtimeClient=null;
+}
+
+async function signedArtwork(path){
+ if(!path)return'';
+ try{
+  const url=SUPABASE_URL+'/storage/v1/object/authenticated/item-artwork/'+path;
+  const r=await fetch(url,{headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+cloudSession.access_token}});
+  if(!r.ok)throw new Error((await r.text())||('Artwork '+r.status));
+  return URL.createObjectURL(await r.blob())
+ }catch(e){console.warn('Artwork load failed for',path,e);return''}
+}
+async function loadCloudData(){setSync('Loading…');let [cs,ch,it,ref,ses]=await Promise.all([
+ sb('/rest/v1/containers?select=*&campaign_id=eq.'+campaignId+'&order=sort_order.asc,name.asc'),
+ sb('/rest/v1/characters?select=*&campaign_id=eq.'+campaignId+'&order=sort_order.asc,name.asc'),
+ sb('/rest/v1/items?select=*&campaign_id=eq.'+campaignId+'&order=sort_order.asc'),
+ sb('/rest/v1/campaign_reference?select=*&campaign_id=eq.'+campaignId+'&order=sort_order.asc,title.asc'),
+ sb('/rest/v1/session_notes?select=*&campaign_id=eq.'+campaignId+'&order=session_number.desc')]);
+ containerRows=cs||[];characterRows=ch||[];containers=containerRows.map(x=>x.name);characters=characterRows.map(x=>x.name);
+ const cmap=Object.fromEntries(containerRows.map(x=>[x.id,x.name])),hmap=Object.fromEntries(characterRows.map(x=>[x.id,x.name]));
+ // v99: fetch artwork metadata explicitly, then merge by item id before building
+ // client objects. This keeps image_path from being lost during row reconstruction.
+ const artworkRows=await sb('/rest/v1/items?select=id,image_path&campaign_id=eq.'+campaignId);
+ const artworkById=Object.fromEntries((artworkRows||[]).map(x=>[x.id,x.image_path||'']));
+ items=(it||[]).map(x=>{const imagePath=artworkById[x.id]||x.image_path||'';return {id:x.id,kind:x.kind==='treasury'?'treasury':undefined,name:x.name,category:x.category||'',qty:x.quantity??0,location:x.location_type==='dm_storage'?'storage':x.location_type==='used_sold'?'used':x.location_type,container:cmap[x.container_id]||x.legacy_location_name||'',holder:hmap[x.character_id]||x.legacy_location_name||'',rarity:x.rarity||'',notes:x.notes||'',identified:x.identified!==false,image:'',imagePath,pp:x.platinum||0,gp:x.gold||0,sp:x.silver||0,cp:x.copper||0,valuables:x.valuables||'',createdAt:x.created_at,updatedAt:x.updated_at,revision:x.revision||0}});
+ // Load cloud artwork only after every item's persisted path has been attached.
+ await Promise.all(items.map(async item=>{if(item.imagePath){item.image=await signedArtwork(item.imagePath)}}));
+ itemOrder={};(it||[]).forEach(x=>itemOrder[x.id]=x.sort_order||0);
+ campaignNotes=(ref||[]).filter(x=>!x.is_deleted).map(x=>({id:x.id,title:x.title,type:x.type,location:x.related_locations||x.legacy_location_text||'',text:x.body||'',revision:x.revision||0,updatedAt:x.updated_at}));referenceTrash=(ref||[]).filter(x=>x.is_deleted).map(x=>({id:x.id,title:x.title,type:x.type,location:x.related_locations||'',text:x.body||'',deletedAt:x.deleted_at||''}));
+ sessionNotes=(ses||[]).filter(x=>!x.is_deleted).map(x=>({id:x.id,number:x.session_number,date:x.session_date||'',title:x.title||'',body:x.body||'',revision:x.revision||0,updatedAt:x.updated_at}));sessionTrash=(ses||[]).filter(x=>x.is_deleted).map(x=>({id:x.id,number:x.session_number,date:x.session_date||'',title:x.title||'',body:x.body||'',deletedAt:x.deleted_at||''}));
+ localStorage.setItem(KEY,JSON.stringify(items));localStorage.setItem(ORDER_KEY,JSON.stringify(itemOrder));localStorage.setItem('shared-inventory-containers-v1',JSON.stringify(containers));localStorage.setItem('shared-inventory-characters-v1',JSON.stringify(characters));localStorage.setItem(NOTES_KEY,JSON.stringify(campaignNotes));localStorage.setItem(SESSION_KEY,JSON.stringify(sessionNotes));localStorage.setItem(REF_TRASH_KEY,JSON.stringify(referenceTrash));localStorage.setItem(SESSION_TRASH_KEY,JSON.stringify(sessionTrash));
+ cloudReady=true;renderContainers();renderCharacters();renderNotes();renderSessions();render();refreshOpenItemViewer();setSync('Synced','ok')}
+async function uploadDataImage(item){
+ // Existing cloud artwork is immutable during ordinary edits/moves. Only a
+ // genuinely new data image with no imagePath is uploaded.
+ if(!item.image?.startsWith('data:'))return item.imagePath||null;
+ if(item.imagePath)return item.imagePath;
+ let blob=await (await fetch(item.image)).blob(),ext=(blob.type.split('/')[1]||'png').replace('jpeg','jpg'),path=campaignId+'/'+item.id+'/art-'+crypto.randomUUID()+'.'+ext;
+ let r=await fetch(SUPABASE_URL+'/storage/v1/object/item-artwork/'+path,{method:'POST',headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+cloudSession.access_token,'Content-Type':blob.type},body:blob});
+ if(!r.ok)throw new Error(await r.text());
+ item.imagePath=path;
+ return path
+}
+function cid(name){return containerRows.find(x=>x.name===name)?.id||null}function hid(name){return characterRows.find(x=>x.name===name)?.id||null}
+async function upsertRows(table,rows){if(!rows.length)return;await sb('/rest/v1/'+table+'?on_conflict=id',{method:'POST',headers:{'Prefer':'resolution=merge-duplicates,return=minimal'},body:JSON.stringify(rows)})}
+async function syncContainersCharacters(){if(currentRole!=='dm')return;let crows=containers.map((name,i)=>({id:containerRows.find(x=>x.name===name)?.id||crypto.randomUUID(),campaign_id:campaignId,name,sort_order:i}));let hrows=characters.map((name,i)=>({id:characterRows.find(x=>x.name===name)?.id||crypto.randomUUID(),campaign_id:campaignId,name,sort_order:i}));await upsertRows('containers',crows);await upsertRows('characters',hrows);containerRows=crows;characterRows=hrows}
+async function syncItems(){
+ let rows=[],pendingArtwork=[];
+ for(let i=0;i<items.length;i++){
+  let x=items[i],loc=x.location==='storage'?'dm_storage':x.location==='used'?'used_sold':x.location;
+  let row={id:x.id,campaign_id:campaignId,kind:x.kind==='treasury'?'treasury':'item',name:x.name||'Untitled Item',category:x.category||null,quantity:Math.max(0,+x.qty||0),rarity:x.rarity||null,notes:x.notes||null,identified:x.identified!==false,location_type:loc,container_id:loc==='container'?cid(x.container):null,character_id:loc==='character'?hid(x.holder):null,legacy_location_name:loc==='container'?x.container:loc==='character'?x.holder:null,sort_order:itemOrder[x.id]??i,platinum:+x.pp||0,gold:+x.gp||0,silver:+x.sp||0,copper:+x.cp||0,valuables:x.valuables||null,updated_by:cloudSession.user.id};
+  // Never upload artwork as part of the item upsert. The item row must exist
+  // first so Storage RLS can authorize the campaign/item path.
+  // Every row in a PostgREST bulk upsert must have the same keys. Always
+  // include image_path; genuinely new artwork starts as null, then uploads
+  // after the item row exists and is patched with its Storage path.
+  row.image_path=x.imagePath||null;
+  if(!x.imagePath&&x.image?.startsWith('data:'))pendingArtwork.push(x);
+  rows.push(row)
+ }
+ await upsertRows('items',rows);
+ for(const x of pendingArtwork){
+  const path=await uploadDataImage(x);
+  await sb('/rest/v1/items?id=eq.'+encodeURIComponent(x.id)+'&campaign_id=eq.'+encodeURIComponent(campaignId),{method:'PATCH',headers:{'Prefer':'return=minimal'},body:JSON.stringify({image_path:path,updated_by:cloudSession.user.id})})
+ }
+}
+async function syncReference(){let all=[...campaignNotes.map(x=>({...x,_del:false})),...referenceTrash.map(x=>({...x,_del:true}))],rows=all.map((x,i)=>({id:x.id,campaign_id:campaignId,title:x.title||'Untitled',type:x.type||'General',body:x.text||'',related_locations:x.location||null,legacy_location_text:x.location||null,is_deleted:x._del,deleted_at:x._del?(x.deletedAt&&Date.parse(x.deletedAt)?new Date(x.deletedAt).toISOString():new Date().toISOString()):null,sort_order:i,updated_by:cloudSession.user.id}));await upsertRows('campaign_reference',rows)}
+async function syncSessions(){let all=[...sessionNotes.map(x=>({...x,_del:false})),...sessionTrash.map(x=>({...x,_del:true}))],rows=all.map((x,i)=>({id:/^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(x.id)?x.id:crypto.randomUUID(),campaign_id:campaignId,session_number:+x.number||0,session_date:x.date||null,title:x.title||null,body:x.body||'',is_deleted:x._del,deleted_at:x._del?(x.deletedAt&&Date.parse(x.deletedAt)?new Date(x.deletedAt).toISOString():new Date().toISOString()):null,sort_order:i,updated_by:cloudSession.user.id}));rows.forEach((r,i)=>{all[i].id=r.id});sessionNotes=all.filter(x=>!x._del).map(({_del,...x})=>x);sessionTrash=all.filter(x=>x._del).map(({_del,...x})=>x);await upsertRows('session_notes',rows)}
+async function syncAll(){if(!cloudReady||syncBusy)return;syncBusy=true;setSync('Syncing…');try{await syncContainersCharacters();await syncItems();await syncReference();await syncSessions();setSync(realtimeChannel?'Synced • Live':'Synced','ok');await updateVisibleFingerprint()}finally{syncBusy=false}}
+function hasLocalCampaignData(){return items.length||campaignNotes.length||sessionNotes.length||containers.some(x=>x!=='Party')||characters.length}
+async function migrateLocalSnapshot(snapshot){items=snapshot.items;containers=snapshot.containers;characters=snapshot.characters;campaignNotes=snapshot.campaignNotes;sessionNotes=snapshot.sessionNotes;referenceTrash=snapshot.referenceTrash;sessionTrash=snapshot.sessionTrash;itemOrder=snapshot.itemOrder;ensureCollabMetadata();cloudReady=true;await syncAll();await loadCloudData()}
+
+function updateBackupAccess(){
+ const b=$('campaignBackupBtn');if(!b)return;
+ const dm=currentRole==='dm';
+ b.classList.toggle('hidden',!dm);
+ b.style.display=dm?'inline-block':'none'
+}
+function bytesToBase64(bytes){
+ let out='',chunk=0x8000;
+ for(let i=0;i<bytes.length;i+=chunk)out+=String.fromCharCode(...bytes.subarray(i,Math.min(i+chunk,bytes.length)));
+ return btoa(out)
+}
+async function backupTable(table){
+ return await sb('/rest/v1/'+table+'?select=*&campaign_id=eq.'+encodeURIComponent(campaignId))
+}
+async function backupArtwork(path){
+ const r=await fetch(SUPABASE_URL+'/storage/v1/object/authenticated/item-artwork/'+path,{headers:{apikey:SUPABASE_KEY,Authorization:'Bearer '+cloudSession.access_token}});
+ if(!r.ok)throw new Error('Artwork backup failed for '+path+': '+await r.text());
+ const blob=await r.blob();
+ return {path,mimeType:blob.type||'application/octet-stream',data:bytesToBase64(new Uint8Array(await blob.arrayBuffer()))}
+}
+async function createFullCampaignBackup(){
+ if(currentRole!=='dm')throw new Error('Only the DM can create a campaign backup.');
+ await ensureFreshSession();
+ setSync('Building backup…');
+ const [campaigns,members,cs,ch,it,ref,ses,updates]=await Promise.all([
+  sb('/rest/v1/campaigns?select=*&id=eq.'+encodeURIComponent(campaignId)),
+  backupTable('campaign_members'),backupTable('containers'),backupTable('characters'),
+  backupTable('items'),backupTable('campaign_reference'),backupTable('session_notes'),
+  backupTable('session_note_updates')
+ ]);
+ const artwork=[];
+ const paths=[...new Set((it||[]).map(x=>x.image_path).filter(Boolean))];
+ for(const path of paths)artwork.push(await backupArtwork(path));
+ return {format:'phandalin-5-half-full-backup',version:1,appVersion:'v113',exportedAt:new Date().toISOString(),campaignId,
+  campaign:campaigns?.[0]||null,campaignMembers:members||[],containers:cs||[],characters:ch||[],items:it||[],
+  campaignReference:ref||[],sessionNotes:ses||[],sessionNoteUpdates:updates||[],artwork};
+}
+async function downloadFullCampaignBackup(){
+ try{
+  const data=await createFullCampaignBackup();
+  const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  const url=URL.createObjectURL(blob),a=document.createElement('a');
+  a.href=url;a.download='Phandalin-5-half-full-backup-'+new Date().toISOString().slice(0,10)+'.json';
+  document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
+  $('backupDialog').close();setSync('Backup downloaded','ok')
+ }catch(e){console.error(e);setSync('Backup failed','bad');alert('The campaign backup could not be created. '+(e?.message||e))}
+}
+
+function plainFromHtml(html){
+ const d=document.createElement('div');d.innerHTML=html||'';
+ d.querySelectorAll('br').forEach(x=>x.replaceWith('\n'));
+ d.querySelectorAll('li').forEach(x=>x.insertAdjacentText('beforeend','\n'));
+ d.querySelectorAll('p,div').forEach(x=>x.insertAdjacentText('afterend','\n'));
+ return (d.textContent||'').replace(/\n{3,}/g,'\n\n').trim()
+}
+function saveBlob(blob,name){
+ const u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download=name;
+ document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),1000)
+}
+async function exportCampaignNotesDocx(){
+ try{
+  if(currentRole!=='dm')throw new Error('Only the DM can export campaign notes.');
+  if(!window.docx)throw new Error('The Word export library did not load. Please check your internet connection and reload the page.');
+  setSync('Building Word export…');
+  const {Document,Packer,Paragraph,TextRun,HeadingLevel}=window.docx;
+  const children=[];
+  children.push(new Paragraph({text:'The Phandalin 5 1/2',heading:HeadingLevel.TITLE}));
+  children.push(new Paragraph({text:'Campaign Notes',heading:HeadingLevel.HEADING_1}));
+  children.push(new Paragraph({text:'Exported '+new Date().toLocaleString()}));
+  children.push(new Paragraph({text:'Session Notes',heading:HeadingLevel.HEADING_1}));
+  const activeSessions=(sessionNotes||[]).filter(x=>!x.deleted).slice().sort((a,b)=>(+a.number||0)-(+b.number||0));
+  for(const n of activeSessions){
+    let title='Session '+(n.number??'');
+    if(n.date)title+=' — '+n.date;
+    if(n.title)title+=' — '+n.title;
+    children.push(new Paragraph({text:title,heading:HeadingLevel.HEADING_2}));
+    const text=plainFromHtml(n.body||n.notes||'');
+    for(const line of (text||'').split('\n'))children.push(new Paragraph({children:[new TextRun(line||' ')]}));
+  }
+  children.push(new Paragraph({text:'Campaign Reference',heading:HeadingLevel.HEADING_1}));
+  const order=['NPC','Location','Quest','Faction','Lore','General'];
+  const activeRefs=(campaignNotes||[]).filter(x=>!x.deleted);
+  const groups=[...order,...[...new Set(activeRefs.map(x=>x.type||'General'))].filter(x=>!order.includes(x))];
+  for(const type of groups){
+    const rows=activeRefs.filter(x=>(x.type||'General')===type);
+    if(!rows.length)continue;
+    children.push(new Paragraph({text:type,heading:HeadingLevel.HEADING_2}));
+    for(const n of rows){
+      children.push(new Paragraph({text:n.title||'Untitled',heading:HeadingLevel.HEADING_3}));
+      const loc=Array.isArray(n.locations)?n.locations.join(', '):(n.location||'');
+      if(loc)children.push(new Paragraph({children:[new TextRun({text:'Related Location(s): ',bold:true}),new TextRun(loc)]}));
+      const text=plainFromHtml(n.body||'');
+      for(const line of (text||'').split('\n'))children.push(new Paragraph({children:[new TextRun(line||' ')]}));
+    }
+  }
+  const doc=new Document({sections:[{children}]});
+  saveBlob(await Packer.toBlob(doc),'Phandalin-5-half-campaign-notes-'+new Date().toISOString().slice(0,10)+'.docx');
+  setSync('Word export downloaded','ok')
+ }catch(e){console.error(e);setSync('Export failed','bad');alert('The Word export could not be created. '+(e?.message||e))}
+}
+async function imageDataForPdf(item){
+ if(!item.imagePath)return null;
+ const r=await fetch(SUPABASE_URL+'/storage/v1/object/authenticated/item-artwork/'+item.imagePath,{headers:{apikey:SUPABASE_KEY,Authorization:'Bearer '+cloudSession.access_token}});
+ if(!r.ok)return null;
+ const blob=await r.blob();return await new Promise(resolve=>{const fr=new FileReader();fr.onload=()=>resolve(fr.result);fr.readAsDataURL(blob)})
+}
+async function exportInventoryPdf(){
+ try{
+  if(currentRole!=='dm')throw new Error('Only the DM can export inventory.');
+  if(!window.jspdf?.jsPDF)throw new Error('The PDF export library did not load.');
+  setSync('Building PDF export…');
+  const {jsPDF}=window.jspdf, pdf=new jsPDF({unit:'pt',format:'letter'});
+  const margin=44,w=612-margin*2;let y=48;
+  const page=()=>{pdf.addPage();y=48};
+  const ensure=h=>{if(y+h>748)page()};
+  pdf.setFont('times','bold');pdf.setFontSize(20);pdf.text('The Phandalin 5 1/2 — Inventory',margin,y);y+=26;
+  pdf.setFont('times','normal');pdf.setFontSize(9);pdf.text('Exported '+new Date().toLocaleString(),margin,y);y+=24;
+  const visible=(items||[]).filter(x=>x.location!=='storage'&&x.location!=='used');
+  for(const x of visible){
+    ensure(110);
+    pdf.setFont('times','bold');pdf.setFontSize(14);pdf.text(x.name||'Untitled Item',margin,y);y+=16;
+    pdf.setFont('times','normal');pdf.setFontSize(9);
+    const loc=x.location==='character'?(x.holder||'Character'):(x.container||'Shared');
+    if(x.kind==='treasury'){
+      pdf.text(`Treasury • ${loc}`,margin,y);y+=13;
+      pdf.text(`PP ${x.pp||0}   GP ${x.gp||0}   SP ${x.sp||0}   CP ${x.cp||0}`,margin,y);y+=13;
+      if(x.valuables){for(const line of pdf.splitTextToSize('Jewels & Valuables: '+plainFromHtml(x.valuables),w)){ensure(12);pdf.text(line,margin,y);y+=11}}
+    }else{
+      const meta=[`Qty ${x.qty??0}`,loc,x.category,x.rarity,x.identified===false?'Unidentified':'Identified'].filter(Boolean).join(' • ');
+      pdf.text(meta,margin,y);y+=14;
+      const img=await imageDataForPdf(x);
+      if(img){try{ensure(92);pdf.addImage(img,'PNG',margin,y,72,72);y+=82}catch{}}
+      const desc=plainFromHtml(x.notes||'');
+      if(desc){for(const line of pdf.splitTextToSize(desc,w)){ensure(12);pdf.text(line,margin,y);y+=11}}
+    }
+    y+=14;pdf.setDrawColor(180);pdf.line(margin,y-7,612-margin,y-7)
+  }
+  pdf.save('Phandalin-5-half-inventory-'+new Date().toISOString().slice(0,10)+'.pdf');
+  setSync('PDF export downloaded','ok')
+ }catch(e){console.error(e);setSync('Export failed','bad');alert('The Inventory PDF could not be created. '+(e?.message||e))}
+}
+async function initSharedApp(){let localSnapshot={items:[...items],containers:[...containers],characters:[...characters],campaignNotes:[...campaignNotes],sessionNotes:[...sessionNotes],referenceTrash:[...referenceTrash],sessionTrash:[...sessionTrash],itemOrder:{...itemOrder}};try{cloudSession=JSON.parse(localStorage.getItem(SB_SESSION_KEY)||'null')}catch{};if(cloudSession){try{if(cloudSession.expires_at&&cloudSession.expires_at*1000<Date.now()+30000)await refreshSession();await loadMembership();$('authGate').classList.add('hidden');await loadCloudData();await startRealtime();startSessionRefresh();if(currentRole==='dm'&&hasLocalCampaignData.call(null)&&!items.length&&localSnapshot.items.length){await migrateLocalSnapshot(localSnapshot)}}catch(e){console.warn(e);localStorage.removeItem(SB_SESSION_KEY);cloudSession=null}}}
+
 function nowISO(){return new Date().toISOString()}
 function ensureCollabMetadata(){
  let changed=false;
@@ -1757,13 +2115,13 @@ function ensureCollabMetadata(){
  if(changed){save();saveItemOrder()}
 }
 
-function saveContainers(){localStorage.setItem('shared-inventory-containers-v1',JSON.stringify(containers))}
-function saveCharacters(){localStorage.setItem('shared-inventory-characters-v1',JSON.stringify(characters))}
+function saveContainers(){localStorage.setItem('shared-inventory-containers-v1',JSON.stringify(containers));queueCloudSync('containers')}
+function saveCharacters(){localStorage.setItem('shared-inventory-characters-v1',JSON.stringify(characters));queueCloudSync('characters')}
 
 const SESSION_KEY='shared-inventory-session-notes-v1';
 let sessionNotes=JSON.parse(localStorage.getItem(SESSION_KEY)||'[]');
 let collapsedSessions=JSON.parse(localStorage.getItem('shared-inventory-session-collapsed-v1')||'{}');
-function saveSessionNotes(){localStorage.setItem(SESSION_KEY,JSON.stringify(sessionNotes))}
+function saveSessionNotes(){localStorage.setItem(SESSION_KEY,JSON.stringify(sessionNotes));queueCloudSync('sessions')}
 function saveCollapsedSessions(){localStorage.setItem('shared-inventory-session-collapsed-v1',JSON.stringify(collapsedSessions))}
 function sesc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function cleanSessionHTML(html){
@@ -1806,7 +2164,7 @@ function renderSessions(){
    let collapsed=q?false:!!collapsedSessions[x.id];
    return `<section class="sessionEntry ${collapsed?'collapsed':''}" data-session="${x.id}">
    <div class="sessionEntryHead"><div><div class="sessionEntryTitle">${x.number?'Session '+sesc(x.number):'Session'}${x.title?' — '+sesc(x.title):''}</div><div class="sessionMeta">${sesc(x.date||'')}</div></div>
-   <div class="sessionHeadActions"><button class="btn sessionToggle" data-stoggle="${x.id}">${collapsed?'Expand':'Collapse'}</button><button class="btn sessionEdit" data-sedit="${x.id}">Edit</button></div></div>
+   <div class="sessionHeadActions"><button type="button" class="btn sessionToggle" data-stoggle="${x.id}">${collapsed?'Expand':'Collapse'}</button><button type="button" class="btn sessionEdit" data-sedit="${x.id}">Edit</button></div></div>
    <div class="sessionBody">${highlightSessionMatches(x.body||'',rawQ)}</div></section>`}).join('');
  $('sessionEmpty').classList.toggle('hidden',rows.length>0);
  document.querySelectorAll('[data-sedit]').forEach(b=>b.onclick=()=>openSession(b.dataset.sedit));
@@ -1820,15 +2178,15 @@ $('collapseAllSessions').onclick=()=>{
  sessionNotes.forEach(x=>collapsedSessions[x.id]=true);
  saveCollapsedSessions();renderSessions();
 };
-function openSession(id){
- let x=sessionNotes.find(v=>v.id===id);
+async function openSession(id){
+ let x=sessionNotes.find(v=>String(v.id)===String(id));sessionEditBase=x?cloneEditBase(x):null;
  $('sessionId').value=x?.id||'';$('sessionNumber').value=x?.number||'';$('sessionDate').value=x?.date||'';$('sessionTitle').value=x?.title||'';
- $('sessionBody').innerHTML=x?.body||'';
- $('sessionEditorTitle').textContent=x?'Edit Session':'New Session';$('deleteSession').classList.toggle('hidden',!x);$('sessionEditor').showModal()
+ $('sessionEditorTitle').textContent=x?'Edit Session':'New Session';$('deleteSession').classList.toggle('hidden',!x);$('sessionEditor').showModal();
+ try{await window.collabSession?.open(x?.id||null,x?.body||'')}catch(e){console.error(e);$('sessionCollabStatus').textContent='Live collaboration unavailable: '+(e?.message||e)}
 }
 
-const saveNotes=()=>localStorage.setItem(NOTES_KEY,JSON.stringify(campaignNotes));
-function showPage(page){currentPage=page;let inv=page==='inventory',notes=page==='notes',sess=page==='session';$('inventoryPage').classList.toggle('hidden',!inv);$('notesPage').classList.toggle('hidden',!notes);$('sessionPage').classList.toggle('hidden',!sess);$('inventoryActions').classList.toggle('hidden',!inv);$('inventoryActions').style.display=inv?'flex':'none';$('addNote').classList.toggle('hidden',!notes);$('addNote').style.display=notes?'block':'none';$('inventoryNav').classList.toggle('active',inv);$('notesNav').classList.toggle('active',notes);$('sessionNav').classList.toggle('active',sess);if(notes)renderNotes();if(sess)renderSessions()}
+const saveNotes=()=>{localStorage.setItem(NOTES_KEY,JSON.stringify(campaignNotes));queueCloudSync('reference')};
+function showPage(page){updateBackupAccess();currentPage=page;let inv=page==='inventory',notes=page==='notes',sess=page==='session';$('inventoryPage').classList.toggle('hidden',!inv);$('notesPage').classList.toggle('hidden',!notes);$('sessionPage').classList.toggle('hidden',!sess);$('inventoryActions').classList.toggle('hidden',!inv);$('inventoryActions').style.display=inv?'flex':'none';$('addNote').classList.toggle('hidden',!notes);$('addNote').style.display=notes?'block':'none';$('inventoryNav').classList.toggle('active',inv);$('notesNav').classList.toggle('active',notes);$('sessionNav').classList.toggle('active',sess);if(notes)renderNotes();if(sess)renderSessions()}
 function noteLocations(n){return String(n.location||'').split(',').map(x=>x.trim()).filter(Boolean)}
 function noteEsc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function cleanNoteHTML(html){
@@ -1877,7 +2235,7 @@ function renderNotes(){
  grid.classList.toggle('noteListView',notesView==='list');
  $('noteCardView').classList.toggle('active',notesView==='cards');$('noteListView').classList.toggle('active',notesView==='list');
 }
-function resetNote(n={}){$('noteId').value=n.id||'';$('noteTitle').value=n.title||'';$('noteType').value=n.type||'NPC';$('noteLocation').value=n.location||'';$('noteText').innerHTML=noteHTML(n.text||'');$('noteEditorTitle').textContent=n.id?'Edit Campaign Note':'Add Campaign Note';$('deleteNote').classList.toggle('hidden',!n.id)}
+function resetNote(n={}){noteEditBase=n.id?cloneEditBase(n):null;$('noteId').value=n.id||'';$('noteTitle').value=n.title||'';$('noteType').value=n.type||'NPC';$('noteLocation').value=n.location||'';$('noteText').innerHTML=noteHTML(n.text||'');$('noteEditorTitle').textContent=n.id?'Edit Campaign Note':'Add Campaign Note';$('deleteNote').classList.toggle('hidden',!n.id)}
 function viewNote(id){let n=campaignNotes.find(x=>x.id===id);if(!n)return;selectedNote=id;$('noteViewType').textContent=(n.type||'General')+(n.location?' • '+n.location:'');$('noteViewTitle').textContent=n.title||'';$('noteViewBody').innerHTML=noteHTML(n.text||'');$('noteViewer').showModal()}
 function visible(i){return $('mode').value==='dm'||i.location!=='storage'}
 function filtered(){
@@ -1903,10 +2261,10 @@ function render(){
  document.body.classList.toggle('dm-mode',$('mode').value==='dm');
 
  $('containerTabs').innerHTML=containers.map(c=>`<button class="tab" data-tab="container:${esc(c)}"><span aria-hidden="true">▣</span> ${esc(c)}</button>`).join('');
- $('location').innerHTML=containers.map(c=>`<option value="container:${esc(c)}">${esc(c)}</option>`).join('')+'<option value="character">Character</option>'+($('mode').value==='dm'?'<option value="storage">DM Storage</option><option value="used">Used/Sold</option>':'');
+ if(!$('editor').open)populateItemLocationTargets();$('location').querySelector('option[value="storage"]').hidden=$('mode').value!=='dm';
  $('treasuryLocation').innerHTML=containers.map(c=>`<option value="container:${esc(c)}">${esc(c)}</option>`).join('')+characters.map(c=>`<option value="character:${esc(c)}">${esc(c)}</option>`).join('');
  if(tab==='party') tab='container:'+(containers[0]||'Party');
- $('characterTabs').innerHTML=characters.map(c=>`<button class="tab" data-tab="char:${esc(c)}"><span aria-hidden="true">♙</span> ${esc(c)}</button>`).join(''); $('characterNames').innerHTML=characters.map(c=>`<option value="${esc(c)}"></option>`).join('');
+ $('characterTabs').innerHTML=characters.map(c=>`<button class="tab" data-tab="char:${esc(c)}"><span aria-hidden="true">♙</span> ${esc(c)}</button>`).join('');if(!$('editor').open)populateItemLocationTargets();
  document.querySelectorAll('.dmOnly').forEach(x=>{
    const hide=$('mode').value!=='dm';
    x.classList.toggle('hidden',hide);
@@ -1917,7 +2275,7 @@ function render(){
  document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x.dataset.tab===tab));
  options(); let a=filtered(); $('grid').classList.toggle('listview',inventoryView==='list'); $('grid').classList.toggle('compactview',inventoryView==='compact'); $('imageView').classList.toggle('active',inventoryView==='image'); $('listView').classList.toggle('active',inventoryView==='list'); $('compactView').classList.toggle('active',inventoryView==='compact');
  
- $('grid').innerHTML=a.map(i=>i.kind==='treasury'?`<article class="item treasuryCard" data-id="${i.id}"><div class="art treasuryArt"><img src="./assets/funds-icon.png" alt=""></div><div class="ibody"><div class="itop"><div class="name">${esc(i.name||'Funds & Valuables')}</div></div><div class="treasuryCoins"><div class="treasuryCoin"><b>${i.pp||0}</b><small>PP</small></div><div class="treasuryCoin"><b>${i.gp||0}</b><small>GP</small></div><div class="treasuryCoin"><b>${i.sp||0}</b><small>SP</small></div><div class="treasuryCoin"><b>${i.cp||0}</b><small>CP</small></div></div>${i.valuables?`<div class="treasuryPreview">${esc(i.valuables)}</div>`:''}</div></article>`:`<article class="item" data-id="${i.id}"><div class="art">${i.image?`<img src="${i.image}">`:''}</div><div class="ibody"><div class="itop"><div class="name">${esc(i.name)}</div><div class="qty">×${i.qty||0}</div></div><div class="tags">${i.location==='character'?`<span class="tag">${esc(i.holder||'Character')}</span>`:''}<span class="tag">${i.location==='container'?esc(i.container||'Container'):i.location==='storage'?'DM Storage':i.location==='used'?'Used/Sold':'Character'}</span>${!i.identified?'<span class="tag">Unidentified</span>':''}</div></div></article>`).join('');
+ $('grid').innerHTML=a.map(i=>i.kind==='treasury'?`<article class="item treasuryCard" data-id="${i.id}"><div class="art treasuryArt"><img src="./assets/funds-icon.png" alt=""></div><div class="ibody"><div class="itop"><div class="name">${esc(i.name||'Funds & Valuables')}</div></div><div class="treasuryCoins"><div class="treasuryCoin"><b>${i.pp||0}</b><small>PP</small></div><div class="treasuryCoin"><b>${i.gp||0}</b><small>GP</small></div><div class="treasuryCoin"><b>${i.sp||0}</b><small>SP</small></div><div class="treasuryCoin"><b>${i.cp||0}</b><small>CP</small></div></div>${i.valuables?`<div class="treasuryPreview"${inventoryView==='list'?' style="font-size:9px;color:#777;opacity:.72;font-weight:400;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;line-height:1.15;margin-top:4px"':''}>${esc(inventoryView==='list'?treasuryPreviewText(i.valuables):i.valuables)}</div>`:''}</div></article>`:`<article class="item" data-id="${i.id}"><div class="art">${i.image?`<img src="${i.image}">`:''}</div><div class="ibody"><div class="itop"><div class="name">${esc(i.name)}</div><div class="qty">×${i.qty||0}</div></div><div class="tags">${i.location==='character'&&i.holder?`<span class="tag">${esc(i.holder)}</span>`:''}<span class="tag">${i.location==='container'?esc(i.container||'Container'):i.location==='storage'?'DM Storage':i.location==='used'?'Used/Sold':i.location==='character'?'Character':''}</span>${!i.identified?'<span class="tag">Unidentified</span>':''}</div></div></article>`).join('');
  $('empty').classList.toggle('hidden',a.length>0);
  setupItemReordering(a);
 }
@@ -1994,9 +2352,10 @@ function reorderDisplayedItems(fromId,toId,displayed){
  saveItemOrder();render();
 }
 function resetForm(i={}){
- $('id').value=i.id||'';$('name').value=i.name||'';$('cat').value=i.category||'';$('qty').value=i.qty??1;$('location').value=i.location==='container'?'container:'+(i.container||containers[0]||'Party'):(i.location||('container:'+(containers[0]||'Party')));$('holder').value=i.holder||'';$('rarity').value=i.rarity||'';$('notes').value=i.notes||'';$('identified').checked=i.identified!==false;$('image').value='';pendingImage=i.image||'';$('imageStatus').textContent=pendingImage?'Current image loaded':'No image selected';$('pasteImage').textContent=pendingImage?'Image loaded — paste another to replace it':'Click here, then paste an image (Ctrl/Cmd+V)';updateImagePreview();$('delete').classList.toggle('hidden',!i.id||$('mode').value!=='dm');$('formTitle').textContent=i.id?'Edit Item':'Add Item';
+ itemEditBase=i.id?cloneEditBase(i):null;itemLocationTouched=false;
+ $('id').value=i.id||'';$('name').value=i.name||'';$('cat').value=i.category||'';$('qty').value=i.qty??1;$('location').value=i.location||'container';populateItemLocationTargets(i.container||containers[0]||'',i.holder||'');$('itemContainer').value=i.container||containers[0]||'';$('holder').value=i.holder||'';updateItemLocationFields();$('rarity').value=i.rarity||'';$('notes').value=i.notes||'';$('identified').checked=i.identified!==false;$('image').value='';pendingImage=i.image||'';$('imageStatus').textContent=pendingImage?'Current image loaded':'No image selected';$('pasteImage').textContent=pendingImage?'Image loaded — paste another to replace it':'Click here, then paste an image (Ctrl/Cmd+V)';updateImagePreview();$('delete').classList.toggle('hidden',!i.id||$('mode').value!=='dm');$('formTitle').textContent=i.id?'Edit Item':'Add Item';
 }
-function view(id){let i=items.find(x=>x.id===id);if(!i)return;selected=id;if(i.kind==='treasury'){
+function populateItemViewer(id,openDialog=false){let i=items.find(x=>x.id===id);if(!i)return false;selected=id;if(i.kind==='treasury'){
  $('vimage').classList.remove('hidden');
  $('playerRemove').classList.add('hidden');$('edit').classList.add('hidden');$('editTreasury').classList.remove('hidden');
  $('vname').textContent=i.name||'Funds & Valuables';
@@ -2011,15 +2370,41 @@ function view(id){let i=items.find(x=>x.id===id);if(!i)return;selected=id;if(i.k
    ? '<div class="openedTreasuryLabel">Jewels &amp; Valuables</div><div class="openedTreasuryValuables"></div>'
    : '<div class="openedTreasuryEmpty">No jewels or valuables listed.</div>';
  if(i.valuables)$('vnotes').querySelector('.openedTreasuryValuables').textContent=i.valuables;
- $('viewer').showModal();return;
-}$('editTreasury').classList.add('hidden');$('edit').classList.remove('hidden');$('playerRemove').classList.toggle('hidden',$('mode').value!=='player'||i.location==='used');$('vname').textContent=i.name;$('vmeta').textContent=[i.category,i.rarity,i.location==='character'?i.holder:i.location==='container'?(i.container||'Container'):i.location==='used'?'Used/Sold':'DM Storage','Qty '+i.qty].filter(Boolean).join(' • ');$('vimage').innerHTML=i.image?`<img class="fullItemImage" src="${i.image}" alt="${esc(i.name)}">`:'';$('vimage').classList.toggle('hidden',!i.image);$('vnotes').textContent=($('mode').value==='player'&&!i.identified)?'This item has not been identified yet.':(i.notes||'No notes.');$('viewer').showModal()}
-function resetTreasury(i={}){$('treasuryId').value=i.id||'';$('treasuryName').value=i.name||'Funds & Valuables';$('treasuryPP').value=i.pp||0;$('treasuryGP').value=i.gp||0;$('treasurySP').value=i.sp||0;$('treasuryCP').value=i.cp||0;$('treasuryValuables').value=i.valuables||'';$('deleteTreasury').classList.toggle('hidden',!i.id||$('mode').value!=='dm');$('treasuryTitle').textContent=i.id?'Edit Treasury':'Add Treasury';let loc=i.location==='container'?'container:'+(i.container||''):i.location==='character'?'character:'+(i.holder||''):'';if(loc&&[...$('treasuryLocation').options].some(o=>o.value===loc))$('treasuryLocation').value=loc;else if(tab.startsWith('container:'))$('treasuryLocation').value=tab;else if(tab.startsWith('char:'))$('treasuryLocation').value='character:'+tab.slice(5)}
-$('addTreasury').onclick=()=>{resetTreasury();$('treasuryEditor').showModal()};$('cancelTreasury').onclick=()=>$('treasuryEditor').close();$('editTreasury').onclick=()=>{let i=items.find(x=>x.id===selected);$('viewer').close();resetTreasury(i);$('treasuryEditor').showModal()};$('treasuryForm').onsubmit=e=>{e.preventDefault();let old=items.find(x=>x.id===$('treasuryId').value),lv=$('treasuryLocation').value,isChar=lv.startsWith('character:'),obj={id:old?.id||crypto.randomUUID(),createdAt:old?.createdAt||nowISO(),updatedAt:nowISO(),revision:(old?.revision||0)+1,kind:'treasury',name:$('treasuryName').value.trim()||'Funds & Valuables',pp:Math.max(0,+$('treasuryPP').value||0),gp:Math.max(0,+$('treasuryGP').value||0),sp:Math.max(0,+$('treasurySP').value||0),cp:Math.max(0,+$('treasuryCP').value||0),valuables:$('treasuryValuables').value.trim(),location:isChar?'character':'container',holder:isChar?lv.slice(10):'',container:isChar?'':lv.slice(10),category:'',rarity:'',notes:'',qty:0,identified:true,image:''};items=old?items.map(x=>x.id===obj.id?obj:x):[...items,obj];save();$('treasuryEditor').close();render()};$('deleteTreasury').onclick=()=>{let id=$('treasuryId').value;if(confirm('Delete this Treasury?')){items=items.filter(x=>x.id!==id);delete itemOrder[id];saveItemOrder();save();$('treasuryEditor').close();render()}};
-$('add').onclick=()=>{resetForm();if($('mode').value==='player'&&$('location').value==='storage')$('location').value='container:'+(containers[0]||'Party');$('editor').showModal()}
+ if(openDialog&&!$('viewer').open)$('viewer').showModal();return true;
+}$('editTreasury').classList.add('hidden');$('edit').classList.remove('hidden');$('playerRemove').classList.toggle('hidden',$('mode').value!=='player'||i.location==='used');$('vname').textContent=i.name;$('vmeta').textContent=[i.category,i.rarity,i.location==='character'?i.holder:i.location==='container'?(i.container||'Container'):i.location==='used'?'Used/Sold':'DM Storage','Qty '+i.qty].filter(Boolean).join(' • ');$('vimage').innerHTML=i.image?`<img class="fullItemImage" src="${i.image}" alt="${esc(i.name)}">`:'';$('vimage').classList.toggle('hidden',!i.image);$('vnotes').textContent=($('mode').value==='player'&&!i.identified)?'This item has not been identified yet.':(i.notes||'No notes.');if(openDialog&&!$('viewer').open)$('viewer').showModal();return true}
+function view(id){populateItemViewer(id,true)}
+function refreshOpenItemViewer(){
+ if(!$('viewer').open||!selected)return;
+ const current=items.find(x=>x.id===selected);
+ if(!current){$('viewer').close();selected=null;return}
+ populateItemViewer(selected,false);
+}
+
+function resetTreasury(i={}){treasuryEditBase=i.id?cloneEditBase(i):null;$('treasuryId').value=i.id||'';$('treasuryName').value=i.name||'Funds & Valuables';$('treasuryPP').value=i.pp||0;$('treasuryGP').value=i.gp||0;$('treasurySP').value=i.sp||0;$('treasuryCP').value=i.cp||0;$('treasuryValuables').value=i.valuables||'';$('deleteTreasury').classList.toggle('hidden',!i.id||$('mode').value!=='dm');$('treasuryTitle').textContent=i.id?'Edit Treasury':'Add Treasury';let loc=i.location==='container'?'container:'+(i.container||''):i.location==='character'?'character:'+(i.holder||''):'';if(loc&&[...$('treasuryLocation').options].some(o=>o.value===loc))$('treasuryLocation').value=loc;else if(tab.startsWith('container:'))$('treasuryLocation').value=tab;else if(tab.startsWith('char:'))$('treasuryLocation').value='character:'+tab.slice(5)}
+$('addTreasury').onclick=()=>{resetTreasury();$('treasuryEditor').showModal()};$('cancelTreasury').onclick=()=>$('treasuryEditor').close();$('editTreasury').onclick=()=>{let i=items.find(x=>x.id===selected);$('viewer').close();resetTreasury(i);$('treasuryEditor').showModal()};$('treasuryForm').onsubmit=async e=>{e.preventDefault();try{let id=$('treasuryId').value;if(id&&treasuryEditBase)await refreshIfRevisionChanged('items',id,treasuryEditBase.revision);let latest=items.find(x=>x.id===id),lv=$('treasuryLocation').value,isChar=lv.startsWith('character:'),mine={id:latest?.id||crypto.randomUUID(),createdAt:latest?.createdAt||nowISO(),updatedAt:nowISO(),revision:(latest?.revision||0)+1,kind:'treasury',name:$('treasuryName').value.trim()||'Funds & Valuables',pp:Math.max(0,+$('treasuryPP').value||0),gp:Math.max(0,+$('treasuryGP').value||0),sp:Math.max(0,+$('treasurySP').value||0),cp:Math.max(0,+$('treasuryCP').value||0),valuables:$('treasuryValuables').value.trim(),location:isChar?'character':'container',holder:isChar?lv.slice(10):'',container:isChar?'':lv.slice(10),category:'',rarity:'',notes:'',qty:0,identified:true,image:latest?.image||'',imagePath:latest?.imagePath||''};let obj=mine;if(id&&treasuryEditBase&&latest&&latest.revision!==treasuryEditBase.revision){const fields=['name','pp','gp','sp','cp','valuables','location','holder','container'],labels={name:'Name',pp:'Platinum',gp:'Gold',sp:'Silver',cp:'Copper',valuables:'Jewels & Valuables',location:'Location',holder:'Character',container:'Container'};const yours=fieldChanges(treasuryEditBase,mine,fields),theirs=fieldChanges(treasuryEditBase,latest,fields),overlap=yours.filter(f=>theirs.includes(f)&&!sameVal(mine[f],latest[f]));if(overlap.length){const choice=await askConflict(treasuryEditBase,latest,mine,fields,labels);if(choice==='cancel')return;obj=choice==='merge'?mergeEdits(treasuryEditBase,latest,mine,fields):{...latest,...mine}}else obj=mergeEdits(treasuryEditBase,latest,mine,fields);obj.updatedAt=nowISO();obj.revision=(latest.revision||0)+1}items=latest?items.map(x=>x.id===obj.id?obj:x):[...items,obj];save();$('treasuryEditor').close();render()}catch(err){console.error(err);alert('The Treasury could not be saved. '+(err?.message||err))}};$('deleteTreasury').onclick=async()=>{let id=$('treasuryId').value;if(!id||currentRole!=='dm')return;if(!confirm('Delete this Treasury?'))return;setSync('Deleting…');try{await sb('/rest/v1/items?id=eq.'+encodeURIComponent(id)+'&campaign_id=eq.'+encodeURIComponent(campaignId),{method:'DELETE'});items=items.filter(x=>x.id!==id);delete itemOrder[id];saveItemOrder();localStorage.setItem(KEY,JSON.stringify(items));$('treasuryEditor').close();render();setSync('Synced','ok')}catch(e){console.error(e);setSync('Delete failed','bad');alert('The Treasury could not be permanently deleted. It has not been removed from the shared campaign.');try{await loadCloudData()}catch(loadErr){console.error(loadErr)}}};
+function populateItemLocationTargets(containerValue='',holderValue=''){
+ const c=$('itemContainer'),h=$('holder');
+ const wantedContainer=containerValue||c.value||'',wantedHolder=holderValue||h.value||'';
+ c.innerHTML=containers.map(x=>`<option value="${esc(x)}">${esc(x)}</option>`).join('');
+ h.innerHTML='<option value="">Choose a character</option>'+characters.map(x=>`<option value="${esc(x)}">${esc(x)}</option>`).join('');
+ if(wantedContainer&&containers.includes(wantedContainer))c.value=wantedContainer;
+ if(wantedHolder&&characters.includes(wantedHolder))h.value=wantedHolder;
+}
+function updateItemLocationFields(){
+ const loc=$('location').value;
+ populateItemLocationTargets($('itemContainer').value,$('holder').value);
+ $('containerField').classList.toggle('hidden',loc!=='container');
+ $('holderField').classList.toggle('hidden',loc!=='character');
+ $('itemContainer').disabled=loc!=='container';
+ $('holder').disabled=loc!=='character';
+ if(loc==='container'&&!$('itemContainer').value&&containers.length)$('itemContainer').value=containers[0];
+ if(loc==='character'&&!$('holder').value&&characters.length)$('holder').value=characters[0];
+}$('location').onchange=()=>{itemLocationTouched=true;updateItemLocationFields()};$('itemContainer').onchange=()=>{itemLocationTouched=true};$('holder').onchange=()=>{itemLocationTouched=true};
+$('add').onclick=()=>{resetForm({location:'container',container:containers[0]||'',qty:1,identified:true});if($('mode').value==='player'&&$('location').value==='storage'){$('location').value='container';updateItemLocationFields();}$('editor').showModal()}
 $('cancel').onclick=()=>$('editor').close();$('closeView').onclick=()=>$('viewer').close();
 $('edit').onclick=()=>{let i=items.find(x=>x.id===selected);$('viewer').close();resetForm(i);$('editor').showModal()}
 $('playerRemove').onclick=()=>{let i=items.find(x=>x.id===selected);if(!i)return;let total=Math.max(1,+i.qty||1),removeQty=1;if(total>1){let raw=prompt('How many of “'+(i.name||'this item')+'” do you want to move to Used/Sold?\n\nAvailable: '+total,'1');if(raw===null)return;removeQty=parseInt(raw,10);if(!Number.isInteger(removeQty)||removeQty<1||removeQty>total){alert('Please enter a number from 1 to '+total+'.');return;}}else if(!confirm('Move “'+(i.name||'this item')+'” to Used/Sold?'))return;if(removeQty===total){items=items.map(x=>x.id===selected?{...x,location:'used',container:'',holder:''}:x);}else{let remaining={...i,qty:total-removeQty};let removed={...i,id:crypto.randomUUID(),qty:removeQty,location:'used',container:'',holder:''};items=items.map(x=>x.id===selected?remaining:x);items.push(removed);}save();$('viewer').close();tab='used';render()};
-$('delete').onclick=()=>{let id=$('id').value;if(confirm('Delete this item?')){items=items.filter(x=>x.id!==id);delete itemOrder[id];saveItemOrder();save();$('editor').close();render()}}
+$('delete').onclick=async()=>{let id=$('id').value;if(!id||currentRole!=='dm')return;if(!confirm('Delete this item?'))return;setSync('Deleting…');try{await sb('/rest/v1/items?id=eq.'+encodeURIComponent(id)+'&campaign_id=eq.'+encodeURIComponent(campaignId),{method:'DELETE'});items=items.filter(x=>x.id!==id);delete itemOrder[id];saveItemOrder();localStorage.setItem(KEY,JSON.stringify(items));$('editor').close();render();setSync('Synced','ok')}catch(e){console.error(e);setSync('Delete failed','bad');alert('The item could not be permanently deleted. It has not been removed from the shared campaign.');try{await loadCloudData()}catch(loadErr){console.error(loadErr)}}}
 const fileToData=f=>new Promise(r=>{let rd=new FileReader();rd.onload=()=>r(rd.result);rd.readAsDataURL(f)});
 function updateImagePreview(){$('imagePreview').innerHTML=pendingImage?`<img src="${pendingImage}" alt="Item image preview">`:'Image preview will appear here'}
 $('chooseImage').onclick=()=>$('image').click();
@@ -2029,14 +2414,17 @@ $('pasteImage').addEventListener('paste',async e=>{let file=[...(e.clipboardData
 async function saveItemEdit(){
  try{
    const form=$('form');if(!form.checkValidity()){form.reportValidity();return}
-   const old=items.find(x=>x.id===$('id').value);
-   let img=pendingImage||old?.image||'',f=$('image').files&&$('image').files[0];
-   if(f)img=await fileToData(f);
-   let loc=$('location').value;
-   if(!loc)loc='container:'+(containers[0]||'Party');
-   const obj={id:old?.id||crypto.randomUUID(),createdAt:old?.createdAt||nowISO(),updatedAt:nowISO(),revision:(old?.revision||0)+1,name:$('name').value.trim(),category:$('cat').value.trim(),qty:Math.max(0,+$('qty').value||0),location:loc.startsWith('container:')?'container':loc,container:loc.startsWith('container:')?loc.slice(10):'',holder:$('holder').value.trim(),rarity:$('rarity').value.trim(),notes:$('notes').value.trim(),identified:$('identified').checked,image:img};
-   const ix=items.findIndex(x=>x.id===obj.id);if(ix>=0)items[ix]=obj;else items.push(obj);
-   save();$('editor').close();render();
+   const id=$('id').value;if(id&&itemEditBase)await refreshIfRevisionChanged('items',id,itemEditBase.revision);
+   const latest=items.find(x=>x.id===id);
+   let img=pendingImage||latest?.image||'',f=$('image').files&&$('image').files[0];if(f)img=await fileToData(f);const artworkChanged=!!f||img!==(latest?.image||'');
+   let loc=$('location').value,container=loc==='container'?$('itemContainer').value:'',holder=loc==='character'?$('holder').value:'';
+   if(id&&itemEditBase&&!itemLocationTouched){loc=itemEditBase.location;container=itemEditBase.container||'';holder=itemEditBase.holder||''}
+   if(loc==='character'&&!characters.includes(holder)){alert('Please choose a character from the Character dropdown.');return}
+   if(loc==='container'&&!containers.includes(container)){alert('Please choose a container from the Container dropdown.');return}
+   let mine={id:latest?.id||crypto.randomUUID(),createdAt:latest?.createdAt||nowISO(),updatedAt:nowISO(),revision:(latest?.revision||0)+1,name:$('name').value.trim(),category:$('cat').value.trim(),qty:Math.max(0,+$('qty').value||0),location:loc,container,holder,rarity:$('rarity').value.trim(),notes:$('notes').value.trim(),identified:$('identified').checked,image:img,imagePath:artworkChanged?'':(latest?.imagePath||'')};
+   let obj=mine;
+   if(id&&itemEditBase&&latest&&latest.revision!==itemEditBase.revision){const fields=['name','category','qty','location','container','holder','rarity','notes','identified'],labels={name:'Name',category:'Category',qty:'Quantity',location:'Location',container:'Container',holder:'Character',rarity:'Rarity',notes:'Description',identified:'Identified'};const yours=fieldChanges(itemEditBase,mine,fields),theirs=fieldChanges(itemEditBase,latest,fields),overlap=yours.filter(f=>theirs.includes(f)&&!sameVal(mine[f],latest[f]));if(overlap.length){const choice=await askConflict(itemEditBase,latest,mine,fields,labels);if(choice==='cancel')return;obj=choice==='merge'?mergeEdits(itemEditBase,latest,mine,fields):{...latest,...mine}}else obj=mergeEdits(itemEditBase,latest,mine,fields);if(artworkChanged){obj.image=img;obj.imagePath=''}else{obj.image=latest.image;obj.imagePath=latest.imagePath}obj.updatedAt=nowISO();obj.revision=(latest.revision||0)+1}
+   const ix=items.findIndex(x=>x.id===obj.id);if(ix>=0)items[ix]=obj;else items.push(obj);save();$('editor').close();render();
  }catch(err){console.error(err);alert('The item could not be saved. '+(err?.message||err))}
 }
 $('saveItem').onclick=e=>{e.preventDefault();saveItemEdit()};
@@ -2069,10 +2457,7 @@ function sessionCommand(cmd){
 }
 $('sessionBody').addEventListener('keyup',rememberSessionSelection);
 $('sessionBody').addEventListener('mouseup',rememberSessionSelection);
-$('sessionBold').onmousedown=e=>e.preventDefault();$('sessionBold').onclick=()=>sessionCommand('bold');
-$('sessionItalic').onmousedown=e=>e.preventDefault();$('sessionItalic').onclick=()=>sessionCommand('italic');
-$('sessionUnderline').onmousedown=e=>e.preventDefault();$('sessionUnderline').onclick=()=>sessionCommand('underline');
-$('sessionBullet').onmousedown=e=>e.preventDefault();$('sessionBullet').onclick=()=>sessionCommand('insertUnorderedList');$('sessionSearch').oninput=renderSessions;$('saveSession').onclick=()=>{let id=$('sessionId').value,r={id:id||'s'+Date.now(),number:$('sessionNumber').value,date:$('sessionDate').value,title:$('sessionTitle').value.trim(),body:cleanSessionHTML($('sessionBody').innerHTML)};if(id){let i=sessionNotes.findIndex(x=>x.id===id);if(i>=0)sessionNotes[i]=r}else sessionNotes.push(r);saveSessionNotes();$('sessionEditor').close();renderSessions()};$('deleteSession').onclick=()=>{let id=$('sessionId').value;if(id&&confirm('Move this session note to Trash?')){let x=sessionNotes.find(v=>v.id===id);if(x)sessionTrash.push({...x,deletedAt:new Date().toLocaleString()});sessionNotes=sessionNotes.filter(x=>x.id!==id);saveSessionNotes();saveTrash();$('sessionEditor').close();renderSessions()}};
+$('sessionSearch').oninput=renderSessions;$('saveSession').onclick=async()=>{try{let id=$('sessionId').value;let collaborativeBody=window.collabSession?.getHTML?.()||'';if(id&&sessionEditBase)await refreshIfRevisionChanged('session_notes',id,sessionEditBase.revision);let latest=sessionNotes.find(x=>String(x.id)===String(id)),mine={id:id||crypto.randomUUID(),number:$('sessionNumber').value,date:$('sessionDate').value,title:$('sessionTitle').value.trim(),body:collaborativeBody,revision:(latest?.revision||0)+1,updatedAt:nowISO()},r=mine;if(id&&sessionEditBase&&latest){const fields=['number','date','title'],labels={number:'Session Number',date:'Date',title:'Title'};const yours=fieldChanges(sessionEditBase,mine,fields),theirs=fieldChanges(sessionEditBase,latest,fields),overlap=yours.filter(f=>theirs.includes(f)&&!sameVal(mine[f],latest[f]));if(overlap.length){const choice=await askConflict(sessionEditBase,latest,mine,fields,labels);if(choice==='cancel')return;r=choice==='merge'?mergeEdits(sessionEditBase,latest,mine,fields):{...latest,...mine}}else r=mergeEdits(sessionEditBase,latest,mine,fields);r.body=collaborativeBody;r.revision=(latest.revision||0)+1;r.updatedAt=nowISO()}if(id){let i=sessionNotes.findIndex(x=>String(x.id)===String(id));if(i>=0)sessionNotes[i]=r}else sessionNotes.push(r);saveSessionNotes();$('sessionEditor').close();await window.collabSession?.close?.();renderSessions()}catch(err){console.error(err);alert('The session note could not be saved. '+(err?.message||err))}};$('deleteSession').onclick=()=>{let id=$('sessionId').value;if(id&&confirm('Move this session note to Trash?')){let x=sessionNotes.find(v=>String(v.id)===String(id));if(x)sessionTrash.push({...x,deletedAt:new Date().toLocaleString()});sessionNotes=sessionNotes.filter(x=>String(x.id)!==String(id));saveSessionNotes();saveTrash();$('sessionEditor').close();window.collabSession?.close?.();renderSessions()}};
 if($('referenceTrashBtn'))$('referenceTrashBtn').onclick=()=>openTrash('reference');if($('sessionTrashBtn'))$('sessionTrashBtn').onclick=()=>openTrash('session');if($('closeTrash'))$('closeTrash').onclick=()=>$('trashDialog').close();$('addNote').onclick=()=>{resetNote();$('noteEditor').showModal()};$('cancelNote').onclick=()=>$('noteEditor').close();$('closeNote').onclick=()=>$('noteViewer').close();
 $('editNote').onclick=()=>{let n=campaignNotes.find(x=>x.id===selectedNote);$('noteViewer').close();resetNote(n);$('noteEditor').showModal()};
 $('trashNoteFromViewer').onclick=()=>{
@@ -2084,7 +2469,7 @@ $('trashNoteFromViewer').onclick=()=>{
    saveNotes();saveTrash();$('noteViewer').close();renderNotes()
  }
 };
-$('noteForm').onsubmit=e=>{e.preventDefault();let old=campaignNotes.find(x=>x.id===$('noteId').value),n={id:old?.id||crypto.randomUUID(),title:$('noteTitle').value.trim(),type:$('noteType').value,location:$('noteLocation').value.trim(),text:cleanNoteHTML($('noteText').innerHTML)};campaignNotes=old?campaignNotes.map(x=>x.id===n.id?n:x):[...campaignNotes,n];saveNotes();$('noteEditor').close();renderNotes()};
+$('noteForm').onsubmit=async e=>{e.preventDefault();try{let id=$('noteId').value;if(id&&noteEditBase)await refreshIfRevisionChanged('campaign_reference',id,noteEditBase.revision);let latest=campaignNotes.find(x=>x.id===id),mine={id:latest?.id||crypto.randomUUID(),title:$('noteTitle').value.trim(),type:$('noteType').value,location:$('noteLocation').value.trim(),text:cleanNoteHTML($('noteText').innerHTML),revision:(latest?.revision||0)+1,updatedAt:nowISO()},n=mine;if(id&&noteEditBase&&latest&&latest.revision!==noteEditBase.revision){const fields=['title','type','location','text'],labels={title:'Title',type:'Type',location:'Related Locations',text:'Description'};const yours=fieldChanges(noteEditBase,mine,fields),theirs=fieldChanges(noteEditBase,latest,fields),overlap=yours.filter(f=>theirs.includes(f)&&!sameVal(mine[f],latest[f]));if(overlap.length){const choice=await askConflict(noteEditBase,latest,mine,fields,labels);if(choice==='cancel')return;n=choice==='merge'?mergeEdits(noteEditBase,latest,mine,fields):{...latest,...mine}}else n=mergeEdits(noteEditBase,latest,mine,fields);n.revision=(latest.revision||0)+1;n.updatedAt=nowISO()}campaignNotes=latest?campaignNotes.map(x=>x.id===n.id?n:x):[...campaignNotes,n];saveNotes();$('noteEditor').close();renderNotes()}catch(err){console.error(err);alert('The campaign reference note could not be saved. '+(err?.message||err))}};
 $('deleteNote').onclick=()=>{let id=$('noteId').value;if(confirm('Move this campaign reference note to Trash?')){let x=campaignNotes.find(v=>v.id===id);if(x)referenceTrash.push({...x,deletedAt:new Date().toLocaleString()});campaignNotes=campaignNotes.filter(x=>x.id!==id);saveNotes();saveTrash();$('noteEditor').close();renderNotes()}};
 $('noteSearch').oninput=renderNotes;$('noteFilter').oninput=renderNotes;$('noteLocationFilter').oninput=renderNotes;$('noteCardView').onclick=()=>{notesView='cards';localStorage.setItem('shared-inventory-notes-view-v1',notesView);renderNotes()};$('noteListView').onclick=()=>{notesView='list';localStorage.setItem('shared-inventory-notes-view-v1',notesView);renderNotes()};
 let noteSelection=null;
@@ -2095,8 +2480,90 @@ for(const [id,cmd] of [['noteBold','bold'],['noteItalic','italic'],['noteUnderli
 $('imageView').onclick=()=>{inventoryView='image';localStorage.setItem('shared-inventory-view-v1',inventoryView);render()};
 $('listView').onclick=()=>{inventoryView='list';localStorage.setItem('shared-inventory-view-v1',inventoryView);render()}; $('compactView').onclick=()=>{inventoryView='compact';localStorage.setItem('shared-inventory-view-v1',inventoryView);render()};
 ['search','category','owner','mode'].forEach(id=>$(id).oninput=render);
-if(!items.length){items=[{id:crypto.randomUUID(),name:'Potion of Greater Healing',category:'Potion',qty:2,location:'container',container:'Party',holder:'',rarity:'Uncommon',notes:'Available to the party.',identified:true,image:''},{id:crypto.randomUUID(),name:'Unidentified Silver Key',category:'Quest Item',qty:1,location:'storage',holder:'',rarity:'',notes:'Hidden example item. Players cannot see DM Storage.',identified:false,image:''}];save()}
+
+$('campaignBackupBtn').onclick=()=>{if(currentRole==='dm')$('backupDialog').showModal()};
+$('backupClose').onclick=()=>$('backupDialog').close();
+$('downloadCampaignBackup').onclick=downloadFullCampaignBackup;
+$('downloadCampaignNotesDocx').onclick=exportCampaignNotesDocx;
+$('downloadInventoryPdf').onclick=exportInventoryPdf;
+updateBackupAccess();
+$('authForm').onsubmit=async e=>{e.preventDefault();$('authError').textContent='';try{await signIn($('authEmail').value.trim(),$('authPassword').value);await loadMembership();$('authGate').classList.add('hidden');await loadCloudData();await startRealtime();startSessionRefresh()}catch(err){$('authError').textContent=err.message||'Could not sign in.'}};
+$('signOut').onclick=async()=>{stopSessionRefresh();stopRealtime();try{await fetch(SUPABASE_URL+'/auth/v1/logout',{method:'POST',headers:sbHeaders()})}catch{}localStorage.removeItem(SB_SESSION_KEY);location.reload()};
+$('syncNow').onclick=()=>loadCloudData().catch(e=>{console.error(e);setSync('Sync error','bad');alert('Could not sync: '+e.message)});
 showPage('inventory');ensureCollabMetadata();
 render();
+initSharedApp();
 if('serviceWorker' in navigator) window.addEventListener('load',()=>navigator.serviceWorker.register('./service-worker.js'));
-</script></body></html>
+
+// v112 collaborative Session Notes bridge. The Yjs module below uses the existing authenticated API.
+window.collabApi={
+ get campaignId(){return campaignId},
+ get userId(){return cloudSession?.user?.id||null},
+ get displayName(){return currentDisplayName||currentRole||'Player'},
+ sb
+};
+</script>
+<script type="module">
+import * as Y from 'https://esm.sh/yjs@13.6.27';
+const $id=id=>document.getElementById(id);
+let doc=null,ytext=null,quill=null,noteId=null,applyingRemote=false,seen=new Set(),snapshotTimer=null,pollTimer=null,lastRowId=0;
+const toB64=u8=>{let s='';for(let i=0;i<u8.length;i+=0x8000)s+=String.fromCharCode(...u8.subarray(i,i+0x8000));return btoa(s)};
+const fromB64=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
+async function fetchRows(id,after=0){return await window.collabApi.sb('/rest/v1/session_note_updates?select=id,update_data,is_seed&session_note_id=eq.'+encodeURIComponent(id)+(after?'&id=gt.'+encodeURIComponent(after):'')+'&order=id.asc')||[]}
+async function postUpdate(update,isSeed=false){
+ const row={campaign_id:window.collabApi.campaignId,session_note_id:noteId,update_data:toB64(update),is_seed:isSeed,created_by:window.collabApi.userId};
+ try{const saved=await window.collabApi.sb('/rest/v1/session_note_updates',{method:'POST',headers:{'Prefer':'return=representation'},body:JSON.stringify(row)});for(const r of (saved||[]))seen.add(String(r.id));return saved}
+ catch(e){if(isSeed&&/duplicate|unique|23505/i.test(String(e?.message||e)))return null;throw e}
+}
+function html(){return quill?.root?.innerHTML===' <p><br></p>'?'':(quill?.root?.innerHTML||'')}
+function scheduleSnapshot(){clearTimeout(snapshotTimer);snapshotTimer=setTimeout(async()=>{if(!noteId||!quill)return;try{await window.collabApi.sb('/rest/v1/session_notes?id=eq.'+encodeURIComponent(noteId)+'&campaign_id=eq.'+encodeURIComponent(window.collabApi.campaignId),{method:'PATCH',headers:{'Prefer':'return=minimal'},body:JSON.stringify({body:quill.root.innerHTML,updated_by:window.collabApi.userId})})}catch(e){console.warn('Collaborative note snapshot failed',e)}},900)}
+let pollBusy=false;
+async function pollRemoteUpdates(){
+ if(!doc||!noteId||pollBusy)return;
+ pollBusy=true;
+ try{
+  const rows=await fetchRows(noteId,lastRowId);
+  for(const r of rows){
+    const rowId=Number(r.id)||0;
+    if(!seen.has(String(r.id))){seen.add(String(r.id));Y.applyUpdate(doc,fromB64(r.update_data),'remote')}
+    lastRowId=Math.max(lastRowId,rowId);
+  }
+ }catch(e){console.warn('Collaborative note polling failed',e)}
+ finally{pollBusy=false}
+}
+function startCollabPolling(){clearInterval(pollTimer);pollTimer=setInterval(pollRemoteUpdates,300)}
+function bind(){
+ quill.on('text-change',(delta,old,source)=>{if(source!=='user'||applyingRemote)return;doc.transact(()=>ytext.applyDelta(delta.ops),'quill-local')});
+ ytext.observe(evt=>{
+  if(evt.transaction.origin==='quill-local')return;
+  applyingRemote=true;
+  try{
+    // Apply the Yjs-generated delta directly. Because this delta is computed
+    // against the current CRDT state, concurrent local insertions/deletions are
+    // transformed rather than replacing the user's in-progress editor contents.
+    quill.updateContents(evt.delta,'silent');
+  }finally{applyingRemote=false}
+ });
+ doc.on('update',async(update,origin)=>{if(origin!=='quill-local')return;try{await postUpdate(update,false);scheduleSnapshot()}catch(e){console.error(e);$id('sessionCollabStatus').textContent='Live sync error: '+(e?.message||e)}});
+}
+async function createEditor(id,initialHtml){
+ noteId=id;seen.clear();lastRowId=0;doc=new Y.Doc();ytext=doc.getText('quill');
+ const host=$id('sessionBody');host.innerHTML='<div id="sessionQuill"></div>';
+ quill=new window.Quill('#sessionQuill',{theme:'snow',placeholder:"Write the party's notes for this session…",modules:{toolbar:[['bold','italic','underline'],[{list:'bullet'}]],history:{userOnly:true}}});
+ if(!id){if(initialHtml){const d=quill.clipboard.convert(initialHtml);quill.setContents(d,'silent')} $id('sessionCollabStatus').textContent='Save this new session once to start live collaboration.';return}
+ let rows=await fetchRows(id);
+ if(rows.length){for(const r of rows){seen.add(String(r.id));lastRowId=Math.max(lastRowId,Number(r.id)||0);Y.applyUpdate(doc,fromB64(r.update_data),'remote')}}
+ else if(initialHtml){
+   const delta=quill.clipboard.convert(initialHtml);doc.transact(()=>ytext.applyDelta(delta.ops),'seed');
+   const seed=Y.encodeStateAsUpdate(doc);const saved=await postUpdate(seed,true);
+   if(!saved){doc.destroy();doc=new Y.Doc();ytext=doc.getText('quill');rows=await fetchRows(id);for(const r of rows){seen.add(String(r.id));lastRowId=Math.max(lastRowId,Number(r.id)||0);Y.applyUpdate(doc,fromB64(r.update_data),'remote')}}
+ }
+ quill.setContents(ytext.toDelta(),'silent');bind();startCollabPolling();$id('sessionCollabStatus').textContent='Live collaborative editing';$id('sessionCollabStatus').classList.add('live');
+}
+window.collabSession={
+ async open(id,initialHtml){await this.close();await createEditor(id,initialHtml)},
+ async applyRow(row){if(!doc||!noteId||String(row.session_note_id)!==String(noteId)||seen.has(String(row.id)))return;seen.add(String(row.id));Y.applyUpdate(doc,fromB64(row.update_data),'remote');scheduleSnapshot()},
+ getHTML(){return quill?.root?.innerHTML||''},
+ async close(){clearTimeout(snapshotTimer);clearInterval(pollTimer);pollTimer=null;if(doc)doc.destroy();doc=null;ytext=null;quill=null;noteId=null;seen.clear();lastRowId=0;const st=$id('sessionCollabStatus');if(st){st.classList.remove('live');st.textContent='Live collaboration starts when this session is saved.'}}
+};
+</script>\n</body></html>
